@@ -379,3 +379,25 @@ def test_build_notes_joins_summary_list(monkeypatch):
         settings=Settings(),
     )
     assert "One. Two." in md
+
+
+def test_build_notes_accepts_action_items_as_string(monkeypatch):
+    monkeypatch.setattr(
+        pipeline,
+        "_llm_summary",
+        lambda transcript, settings: {
+            "title": "T",
+            "summary": "S",
+            "topics": [],
+            "action_items": "Ship the build\nEmail marketing",
+        },
+    )
+    _, md = build_notes(
+        recording_id="20260101-000000-abcd",
+        segments=[Segment(0, 1, "hi")],
+        language="en",
+        duration=1,
+        device="dev",
+        settings=Settings(),
+    )
+    assert "- Ship the build" in md and "- Email marketing" in md

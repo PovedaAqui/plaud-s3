@@ -2,6 +2,13 @@
 
 All notable changes to this project. Dates are ISO-8601.
 
+## [0.2.2] — 2026-11-04
+
+### Fixed
+- The device reconnects after the server closes the WebSocket cleanly. `esp_websocket_client`
+  stops on a clean CLOSE unless `enable_close_reconnect` is set; without it an idle recorder
+  stayed offline after a server restart and only came back on reboot.
+
 ## [0.2.1] — 2026-11-04
 
 ### Fixed

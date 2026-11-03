@@ -105,6 +105,7 @@ static bool ws_ensure(void)
             .buffer_size = 8192,
             .task_stack = 6144,
             .disable_auto_reconnect = false,
+            .enable_close_reconnect = true,
         };
         s_ws = esp_websocket_client_init(&cfg);
         if (!s_ws) {
