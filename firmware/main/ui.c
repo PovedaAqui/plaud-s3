@@ -56,6 +56,14 @@ void ui_init(void)
     lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
     lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
+    s_avatar = lv_image_create(screen);
+    lv_image_set_src(s_avatar, &avatar_connecting);
+    lv_obj_add_flag(s_avatar, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(s_avatar, on_avatar_pressed, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(s_avatar, on_avatar, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(s_avatar, on_avatar_long, LV_EVENT_LONG_PRESSED, NULL);
+    lv_obj_align(s_avatar, LV_ALIGN_CENTER, 0, -15);
+
     lv_obj_t *brand = lv_label_create(screen);
     lv_label_set_text(brand, "PLAUD-S3");
     lv_obj_set_style_text_color(brand, lv_color_hex(0x8A94A6), 0);
@@ -69,14 +77,6 @@ void ui_init(void)
     lv_obj_set_style_text_align(s_status, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(s_status, 300);
     lv_obj_align(s_status, LV_ALIGN_TOP_MID, 0, 78);
-
-    s_avatar = lv_image_create(screen);
-    lv_image_set_src(s_avatar, &avatar_connecting);
-    lv_obj_add_flag(s_avatar, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(s_avatar, on_avatar_pressed, LV_EVENT_PRESSED, NULL);
-    lv_obj_add_event_cb(s_avatar, on_avatar, LV_EVENT_CLICKED, NULL);
-    lv_obj_add_event_cb(s_avatar, on_avatar_long, LV_EVENT_LONG_PRESSED, NULL);
-    lv_obj_align(s_avatar, LV_ALIGN_CENTER, 0, -15);
 
     s_timer = lv_label_create(screen);
     lv_label_set_text(s_timer, "00:00");
