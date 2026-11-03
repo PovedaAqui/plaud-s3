@@ -20,6 +20,7 @@ void ui_init(void);
 void ui_set_state(ui_state_t state);
 void ui_set_status(const char *text);
 void ui_set_timer(uint32_t seconds);
+void ui_set_pending(int count);
 void ui_on_toggle(void (*callback)(void));
 void ui_on_stop(void (*callback)(void));
 

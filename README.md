@@ -1,8 +1,9 @@
 # plaud-s3
 
 **A Plaud-Note-style voice recorder you own end to end.** An ESP32-S3 watch-style board records
-dual-mic audio, streams it over Wi-Fi to a server on your LAN, and the server writes the
-transcript, summary and Markdown note straight into your Obsidian vault.
+dual-mic audio to its own flash first, uploads it to a server on your LAN whenever that server
+is reachable, and the server writes the transcript, summary and Markdown note straight into
+your Obsidian vault.
 
 No vendor cloud, no subscription minutes, no phone app in the middle.
 
@@ -20,6 +21,8 @@ avatar states below.*
 
 ## What it does
 
+- **Record offline** — audio is written to a 16 MB FAT partition as a WAV; the uploader sends
+  it when the server is reachable, so a dead LAN or a reboot loses nothing.
 - **Record** — tap the screen or a side key; the ES7210 reads two digital mics at 16 kHz.
 - **Pause and resume** — tap again; the paused stretch is dropped server-side, so the WAV has
   no silent gap and the timer excludes it.
@@ -37,19 +40,23 @@ If the model is unreachable, nothing is invented: the note says so and keeps the
 ```mermaid
 flowchart LR
     dev["ESP32-S3<br/>ES7210 dual mic<br/>16 kHz stereo → mono"]
-    ws["WebSocket<br/>100 ms PCM chunks"]
+    flash[("16 MB FAT<br/>/storage/rec_*.wav")]
+    up["uploader<br/>boot + every 5 s"]
     api["FastAPI ingest<br/>streaming WAV writer"]
     asr["faster-whisper<br/>(CPU or CUDA)"]
     dia["pyannote<br/>(optional)"]
     llm["Ollama / any<br/>OpenAI-compatible API"]
     vault[("Obsidian vault<br/>Plaud/*.md")]
 
-    dev --> ws --> api --> asr --> dia --> llm --> vault
+    dev -->|write WAV| flash
+    flash --> up
+    up -->|WebSocket, on stop or later| api
+    api --> asr --> dia --> llm --> vault
     api -.->|audio.wav| vault
 ```
 
-The device is a thin capture client on purpose: it holds no model, no transcript and no state
-beyond the current session.
+The device is a thin capture client on purpose: no model, no transcript, no cloud state. It only
+owns the audio it has not managed to upload yet.
 
 ## Hardware
 
@@ -61,6 +68,7 @@ beyond the current session.
 | Audio | dual digital mics via ES7210 ADC, ES8311 codec, speaker |
 | Sensors / power | QMI8658 IMU, AXP2101 PMIC |
 | Buttons | Key1 → GPIO0 (BOOT); Key2 → AXP2101 `PWRON` (not a GPIO) |
+| Storage | 16 MB FAT partition (`/storage`, wear-levelled), ~8 min at 16 kHz mono |
 | USB | native USB-Serial/JTAG (`303a:1001`) |
 
 A 16 MB flash backup covering the bootloader, partition table, `nvs` and factory app was taken before the first flash.
@@ -223,6 +231,9 @@ On device, `CONFIG_PLAUD_AUTOTEST_SECONDS=N` runs record → pause → resume �
 the whole radio/audio path can be exercised from serial without touching the panel. An 11 s
 speech clip streamed through the same protocol transcribes correctly and lands in the vault.
 
+The offline path was exercised with the server stopped: the board recorded to `/storage`, the
+pending file survived a reboot, and it uploaded itself once the server returned.
+
 The two switches and the touch panel still need a human.
 
 ## Troubleshooting
@@ -241,14 +252,16 @@ The two switches and the touch panel still need a human.
 
 Deliberate for v0:
 
-- **Streaming only.** No offline ring buffer; if Wi-Fi drops mid-recording the audio is lost.
+- **~8 minutes of local audio.** 16 MB FAT at 32 KB/s; a full partition stops the recording with `storage full`.
+- **Retries are not deduplicated.** If the socket dies mid-upload, the next attempt starts a new
+  server session; the local file is only deleted after the server acknowledges `done`.
 - **16 kHz mono.** Enough for ASR, not a hi-fi recorder.
 - **No authentication.** The WebSocket is open on the LAN — do not expose it to the internet.
 - **One pipeline at a time.** `faster-whisper` is not parallelised across recordings.
 - **No OTA, no wake word, no VAD gating** on the device.
 
-Next: flash ring buffer with resumable upload, a shared token between device and server, OTA,
-and locally animated avatars (two baked frames) instead of a static PNG.
+Next: resumable/deduplicated uploads, a shared token between device and server, OTA, and locally
+animated avatars (two baked frames) instead of a static PNG.
 
 ## Credits
 

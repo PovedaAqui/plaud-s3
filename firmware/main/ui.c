@@ -144,6 +144,17 @@ void ui_set_timer(uint32_t seconds)
     bsp_display_unlock();
 }
 
+void ui_set_pending(int count)
+{
+    bsp_display_lock(-1);
+    if (count > 0) {
+        lv_label_set_text_fmt(s_status, "ready - %d saved", count);
+    } else {
+        lv_label_set_text(s_status, "ready");
+    }
+    bsp_display_unlock();
+}
+
 void ui_on_toggle(void (*callback)(void))
 {
     s_toggle_cb = callback;
