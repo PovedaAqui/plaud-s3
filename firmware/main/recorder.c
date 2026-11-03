@@ -354,6 +354,7 @@ static void finish_recording(void)
     /* Drop gestures that arrived while the hold was still being released or the
        file was uploading; a stop must not roll straight into a new recording. */
     s_action = ACT_NONE;
+    ui_set_timer(0);
 
     if (ws_connected()) {
         upload_pending_once();
