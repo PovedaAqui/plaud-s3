@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -25,7 +26,8 @@ _active: dict[WebSocket, dict] = {}
 
 
 def _recording_id() -> str:
-    return datetime.now().strftime("%Y%m%d-%H%M%S")
+    # Two devices can start in the same second; the suffix keeps directories unique.
+    return f"{datetime.now().strftime('%Y%m%d-%H%M%S')}-{os.urandom(2).hex()}"
 
 
 @app.get("/health")
@@ -118,12 +120,29 @@ async def audio_ws(ws: WebSocket) -> None:
 
                 kind = payload.get("type")
                 if kind == "start":
+                    try:
+                        rate = int(payload.get("rate", 16000))
+                    except (TypeError, ValueError):
+                        rate = -1
+                    if rate != 16000:
+                        await ws.send_json({"type": "error", "error": "unsupported rate"})
+                        continue
                     if state:
                         await ws.send_json({"type": "error", "error": "already recording"})
                         continue
-                    recording_id = _recording_id()
-                    out_dir = settings.data_dir / recording_id
-                    out_dir.mkdir(parents=True, exist_ok=True)
+                    out_dir = None
+                    for _ in range(4):
+                        recording_id = _recording_id()
+                        candidate = settings.data_dir / recording_id
+                        try:
+                            candidate.mkdir(parents=True, exist_ok=False)
+                            out_dir = candidate
+                            break
+                        except FileExistsError:
+                            continue
+                    if out_dir is None:
+                        await ws.send_json({"type": "error", "error": "cannot allocate session"})
+                        continue
                     wav_path = out_dir / "audio.wav"
                     state = {
                         "id": recording_id,

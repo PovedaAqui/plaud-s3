@@ -190,6 +190,24 @@ rm firmware/sdkconfig && cd firmware && SDKCONFIG_DEFAULTS="sdkconfig.defaults;s
 
 Remember to remove the line and regenerate `sdkconfig` afterwards.
 
+## Tests
+
+```bash
+cd server && PYTHONPATH=. ../.venv/bin/python -m pytest -q   # 15 tests
+```
+
+Covered: WAV header integrity, ingest, pause/resume (frames dropped while paused),
+stop-while-paused, abrupt disconnect finalisation, malformed JSON, unsupported sample
+rate, two concurrent sessions (unique session ids), pipeline crash isolation, honest
+no-LLM notes, vault publishing, and the HTTP surface.
+
+On-device, `CONFIG_PLAUD_AUTOTEST_SECONDS` runs record → pause → resume → stop after
+boot, so the whole radio/audio path can be exercised from serial without touching the
+panel. A full 11 s speech clip streamed through the same protocol transcribes
+correctly and lands in the vault.
+
+Still manual by nature: the two physical switches and the touch panel.
+
 ## Known limits (deliberate, for v0)
 
 - **Streaming only.** No offline recording, no flash ring buffer. If Wi-Fi drops mid-recording the audio is lost.
