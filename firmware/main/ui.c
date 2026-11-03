@@ -63,20 +63,12 @@ void ui_init(void)
     lv_obj_set_width(s_status, 300);
     lv_obj_align(s_status, LV_ALIGN_TOP_MID, 0, 78);
 
-    lv_obj_t *badge = lv_obj_create(screen);
-    lv_obj_set_size(badge, 200, 200);
-    lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(badge, lv_color_hex(0xEFE7DA), 0);
-    lv_obj_set_style_border_width(badge, 0, 0);
-    lv_obj_set_style_pad_all(badge, 0, 0);
-    lv_obj_add_flag(badge, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_event_cb(badge, on_avatar, LV_EVENT_CLICKED, NULL);
-    lv_obj_add_event_cb(badge, on_avatar_long, LV_EVENT_LONG_PRESSED, NULL);
-    lv_obj_align(badge, LV_ALIGN_CENTER, 0, -15);
-
-    s_avatar = lv_image_create(badge);
+    s_avatar = lv_image_create(screen);
     lv_image_set_src(s_avatar, &avatar_connecting);
-    lv_obj_center(s_avatar);
+    lv_obj_add_flag(s_avatar, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(s_avatar, on_avatar, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(s_avatar, on_avatar_long, LV_EVENT_LONG_PRESSED, NULL);
+    lv_obj_align(s_avatar, LV_ALIGN_CENTER, 0, -15);
 
     s_timer = lv_label_create(screen);
     lv_label_set_text(s_timer, "00:00");
