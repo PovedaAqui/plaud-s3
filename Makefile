@@ -1,15 +1,19 @@
+# Override on the command line: make flash PORT=/dev/ttyACM0
+PORT ?= /dev/ttyACM0
+IDF_EXPORT ?= $(HOME)/esp-idf/export.sh
+VENV ?= .venv
+
 .PHONY: server test firmware flash
 
 server:
-	cd server && ../.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+	cd server && ../$(VENV)/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 test:
-	cd server && ../.venv/bin/python -m pytest -q
+	cd server && ../$(VENV)/bin/python -m pytest -q
 
 firmware:
-	. $(HOME)/esp-idf/export.sh && cd firmware && idf.py reconfigure \
+	. $(IDF_EXPORT) && cd firmware && idf.py reconfigure \
 	  && ../scripts/patch_bsp_display.sh && idf.py build
 
-# The ESP32-S3 is on Windows COM4; flashing goes through the Windows esptool.
 flash:
-	/mnt/c/Windows/System32/cmd.exe /c "py -3 -m esptool --chip esp32s3 -p COM4 -b 921600 write_flash 0x0 \\\\wsl.localhost\\Ubuntu\\home\\luispoveda93\\plaud-s3\\firmware\\build\\merged.bin"
+	. $(IDF_EXPORT) && cd firmware && idf.py -p $(PORT) flash

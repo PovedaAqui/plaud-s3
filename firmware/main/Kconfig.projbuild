@@ -12,9 +12,20 @@ menu "Plaud-S3 recorder"
 
     config PLAUD_SERVER_URL
         string "Ingest WebSocket URL"
-        default "ws://192.168.1.35:8000/ws/audio"
+        default ""
         help
-            Host running server/app/main.py, for example ws://192.168.1.50:8000/ws/audio
+            Host running server/app/main.py, for example ws://192.168.1.50:8000/ws/audio.
+            Leave empty to record offline only; uploads start once a URL is configured.
+
+    config PLAUD_UPLOAD_RETRY_S
+        int "Seconds between upload attempts"
+        range 1 120
+        default 5
+
+    config PLAUD_LONG_PRESS_MS
+        int "Long-press threshold for stop (ms)"
+        range 400 5000
+        default 1500
 
     config PLAUD_DEVICE_NAME
         string "Device name reported to the server"

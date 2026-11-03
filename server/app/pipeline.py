@@ -66,8 +66,8 @@ def transcribe(wav_path: Path, settings: Settings) -> tuple[list[Segment], str]:
     iterator, info = model.transcribe(
         read_pcm(wav_path),
         language=settings.language,
-        vad_filter=True,
-        beam_size=5,
+        vad_filter=settings.asr_vad,
+        beam_size=settings.asr_beam_size,
     )
     segments = [
         Segment(start=float(s.start), end=float(s.end), text=s.text.strip())
@@ -115,14 +115,15 @@ def diarize(wav_path: Path, segments: list[Segment], settings: Settings) -> list
 
 def _llm_chat(prompt: str, settings: Settings) -> dict | None:
     """POST a single prompt to an OpenAI-compatible endpoint and parse JSON."""
-    body = json.dumps(
-        {
-            "model": settings.llm_model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.2,
-            "stream": False,
-        }
-    ).encode()
+    payload = {
+        "model": settings.llm_model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": settings.llm_temperature,
+        "stream": False,
+    }
+    if settings.llm_max_tokens > 0:
+        payload["max_tokens"] = settings.llm_max_tokens
+    body = json.dumps(payload).encode()
     request = urllib.request.Request(
         settings.llm_base_url.rstrip("/") + "/chat/completions",
         data=body,
@@ -153,7 +154,7 @@ def _llm_summary(transcript: str, settings: Settings) -> dict | None:
     """Two small calls instead of one large one: a 1B model follows short,
     single-purpose prompts far more reliably, and a malformed action-items
     answer cannot cost us the summary."""
-    excerpt = transcript[:24000]
+    excerpt = transcript[: settings.llm_max_chars]
     notes = _llm_chat(
         "Summarise this meeting transcript. Reply with JSON only, keys: "
         '"title" (3-8 words describing the topic, never a quote), '

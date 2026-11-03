@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build firmware with local Wi-Fi credentials.
+# Build firmware with local Wi-Fi credentials and server URL.
 #
 #   1. cp wifi.env.example wifi.env   (wifi.env is gitignored)
 #   2. edit wifi.env
@@ -13,20 +13,20 @@ root="$(dirname "$here")/firmware"
 env_file="$here/wifi.env"
 
 if [[ ! -f "$env_file" ]]; then
-    echo "missing $env_file — copy wifi.env.example and fill it in" >&2
+    echo "missing $env_file - copy wifi.env.example and fill it in" >&2
     exit 1
 fi
 
 # shellcheck disable=SC1090
 source "$env_file"
-: "${WIFI_SSID:?WIFI_SSID is required}"
-: "${SERVER_URL:=ws://192.168.1.35:8000/ws/audio}"
+: "${WIFI_SSID:?set WIFI_SSID in scripts/wifi.env}"
+: "${SERVER_URL:?set SERVER_URL in scripts/wifi.env, e.g. ws://192.168.1.50:8000/ws/audio}"
 
-cat > "$root/sdkconfig.local" <<EOF
+cat > "$root/sdkconfig.local" <<CONFIG
 CONFIG_PLAUD_WIFI_SSID="$WIFI_SSID"
 CONFIG_PLAUD_WIFI_PASSWORD="$WIFI_PASSWORD"
 CONFIG_PLAUD_SERVER_URL="$SERVER_URL"
-EOF
+CONFIG
 
 cd "$root"
 rm -f sdkconfig

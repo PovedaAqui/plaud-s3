@@ -25,7 +25,7 @@ static const char *TAG = "recorder";
 #define CHUNK_BYTES (SAMPLE_RATE * CHUNK_MS / 1000 * 2 * CONFIG_PLAUD_CHANNELS)
 #define MONO_BYTES (SAMPLE_RATE * CHUNK_MS / 1000 * 2)
 #define UPLOAD_CHUNK 4096
-#define UPLOAD_RETRY_MS 5000
+#define UPLOAD_RETRY_MS (CONFIG_PLAUD_UPLOAD_RETRY_S * 1000)
 
 #define WS_CONNECTED BIT0
 #define WS_STARTED BIT1
@@ -91,6 +91,9 @@ static bool ws_connected(void)
 
 static bool ws_ensure(void)
 {
+    if (CONFIG_PLAUD_SERVER_URL[0] == '\0') {
+        return false;
+    }
     if (ws_connected()) {
         return true;
     }
@@ -505,7 +508,8 @@ void recorder_init(void)
     ui_set_state(UI_READY);
     ui_set_pending(storage_pending());
     if (!ok) {
-        ui_set_status("offline - saves locally");
+        ui_set_status(
+            CONFIG_PLAUD_SERVER_URL[0] == '\0' ? "offline - no server url" : "offline - saves locally");
     }
 }
 

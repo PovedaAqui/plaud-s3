@@ -29,6 +29,10 @@ class Settings:
     language: str | None = field(
         default_factory=lambda: (os.environ.get("PLAUD_LANGUAGE") or None)
     )
+    asr_beam_size: int = field(
+        default_factory=lambda: int(os.environ.get("PLAUD_ASR_BEAM_SIZE", "5"))
+    )
+    asr_vad: bool = field(default_factory=lambda: _flag("PLAUD_ASR_VAD", True))
 
     diarize: bool = field(default_factory=lambda: _flag("PLAUD_DIARIZE"))
     hf_token: str | None = field(default_factory=lambda: os.environ.get("PLAUD_HF_TOKEN") or None)
@@ -39,6 +43,15 @@ class Settings:
     llm_model: str = field(default_factory=lambda: os.environ.get("PLAUD_LLM_MODEL", "llama3.2"))
     llm_api_key: str = field(default_factory=lambda: os.environ.get("PLAUD_LLM_API_KEY", "ollama"))
     llm_timeout: float = field(default_factory=lambda: float(os.environ.get("PLAUD_LLM_TIMEOUT", "8")))
+    llm_max_chars: int = field(
+        default_factory=lambda: int(os.environ.get("PLAUD_LLM_MAX_CHARS", "24000"))
+    )
+    llm_temperature: float = field(
+        default_factory=lambda: float(os.environ.get("PLAUD_LLM_TEMPERATURE", "0.2"))
+    )
+    llm_max_tokens: int = field(
+        default_factory=lambda: int(os.environ.get("PLAUD_LLM_MAX_TOKENS", "0"))
+    )
 
     # Process inline instead of in a background task (used by tests).
     sync_pipeline: bool = field(default_factory=lambda: _flag("PLAUD_SYNC_PIPELINE"))

@@ -22,7 +22,7 @@ static const char *TAG = "buttons";
 
 #define KEY1_GPIO GPIO_NUM_0
 #define KEY1_DEBOUNCE_SAMPLES 3
-#define KEY1_LONG_PRESS_MS 1500
+#define KEY1_LONG_PRESS_MS CONFIG_PLAUD_LONG_PRESS_MS
 
 #define AXP2101_ADDR 0x34
 #define AXP2101_REG_INTEN2 0x41

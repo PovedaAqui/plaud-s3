@@ -137,7 +137,10 @@ environment-only; see [`.env.example`](server/.env.example).
 
 ### 2. Credentials and firmware
 
-Credentials never live in git. `scripts/wifi.env` and `firmware/sdkconfig.local` are ignored.
+Credentials and the server address never live in git: `scripts/wifi.env` and
+`firmware/sdkconfig.local` are ignored, and both are required (`configure_wifi.sh` refuses to
+build without an SSID and a `ws://` URL). Model, endpoint and decoding options are environment
+variables, so no values are baked into the repository.
 
 ```bash
 cp scripts/wifi.env.example scripts/wifi.env
@@ -236,10 +239,14 @@ Server (environment):
 | `PLAUD_VAULT_DIR` | unset | also copy notes to `<dir>/Plaud/` |
 | `PLAUD_ASR_MODEL` | `small` | `tiny`…`large-v3` |
 | `PLAUD_ASR_DEVICE` / `PLAUD_ASR_COMPUTE` | `cpu` / `int8` | `cuda` + `float16` for GPU |
+| `PLAUD_ASR_BEAM_SIZE` / `PLAUD_ASR_VAD` | `5` / on | decoding width and VAD gate |
 | `PLAUD_LANGUAGE` | auto | force a language |
 | `PLAUD_DIARIZE` / `PLAUD_HF_TOKEN` | off | pyannote speaker labels |
 | `PLAUD_LLM_BASE_URL` / `PLAUD_LLM_MODEL` | Ollama `127.0.0.1:11434/v1` / `llama3.2` | notes backend |
 | `PLAUD_LLM_TIMEOUT` | 8 | seconds before "no summary" fallback |
+| `PLAUD_LLM_MAX_CHARS` | 24000 | transcript excerpt sent to the model |
+| `PLAUD_LLM_TEMPERATURE` | 0.2 | generation temperature |
+| `PLAUD_LLM_MAX_TOKENS` | 0 | 0 lets the endpoint decide |
 
 Firmware (`menuconfig → Plaud-S3 recorder`): Wi-Fi SSID/password, server URL, device name,
 channels, and `PLAUD_AUTOTEST_SECONDS` (0 = off).
