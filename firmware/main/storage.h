@@ -22,10 +22,6 @@ esp_err_t storage_next_path(char *out, size_t len);
 /* Oldest pending file, or false when the queue is empty. */
 bool storage_first_pending(char *out, size_t len);
 
-/* Active volume for new recordings ("/storage" or "/sdcard"). */
-const char *storage_root(void);
-bool storage_is_external(void);
-
 #ifdef __cplusplus
 }
 #endif

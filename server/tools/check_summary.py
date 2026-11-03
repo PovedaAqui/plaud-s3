@@ -11,6 +11,7 @@ Exits 1 when the endpoint returns no usable summary, so it can gate a smoke run.
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import pathlib
 import sys
@@ -38,11 +39,12 @@ def main() -> int:
     args = parser.parse_args()
 
     text = pathlib.Path(args.transcript).read_text() if args.transcript else SAMPLE
-    settings = Settings()
+    overrides = {}
     if args.url:
-        object.__setattr__(settings, "llm_base_url", args.url)
+        overrides["llm_base_url"] = args.url
     if args.model:
-        object.__setattr__(settings, "llm_model", args.model)
+        overrides["llm_model"] = args.model
+    settings = dataclasses.replace(Settings(), **overrides)
 
     print(f"endpoint {settings.llm_base_url} model {settings.llm_model}")
     notes = _llm_summary(text, settings)

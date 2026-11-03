@@ -171,13 +171,3 @@ bool storage_first_pending(char *out, size_t len)
     }
     return s_sd_mounted && first_in(EXTERNAL_ROOT, out, len);
 }
-
-const char *storage_root(void)
-{
-    return s_root;
-}
-
-bool storage_is_external(void)
-{
-    return s_sd_mounted;
-}

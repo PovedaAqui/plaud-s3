@@ -12,3 +12,7 @@ firmware/sdkconfig.local
 scripts/wifi.env
 .pytest_cache/
 *.log
+.vscode/
+.idea/
+*.swp
+.DS_Store

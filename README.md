@@ -10,7 +10,9 @@ No vendor cloud, no subscription minutes, no phone app in the middle.
 ![ESP-IDF](https://img.shields.io/badge/ESP--IDF-5.5.5-blue)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)
 ![Hardware](https://img.shields.io/badge/hardware-ESP32--S3-informational)
-![Tests](https://img.shields.io/badge/tests-15%20passing-brightgreen)
+[![server](https://github.com/PovedaAqui/plaud-s3/actions/workflows/server.yml/badge.svg)](https://github.com/PovedaAqui/plaud-s3/actions/workflows/server.yml)
+[![firmware](https://github.com/PovedaAqui/plaud-s3/actions/workflows/firmware.yml/badge.svg)](https://github.com/PovedaAqui/plaud-s3/actions/workflows/firmware.yml)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
 ![Recording on the device](docs/images/device-recording.jpg)
 
@@ -105,8 +107,9 @@ firmware/
   main/ui.c          LVGL screen: DiceBear avatar, timer, hint, long-press stop
   main/buttons.c     GPIO0 polling + AXP2101 PWRON interrupt-status polling
   main/storage.c     FAT mount (internal + optional SD), pending queue, next path
-  main/avatars.c     baked 240×240 RGB565 avatars (generated)
-  assets/avatars/    source PNGs from DiceBear
+  main/avatars.c     LVGL descriptors for the linked avatar blobs
+  main/assets/       avatar_*.bin — 240×240 RGB565, generated
+  assets/avatars/    DiceBear PNG sources
 server/
   app/main.py        /ws/audio, /health, /recordings
   app/pipeline.py    ASR, optional diarization, LLM notes, vault export
@@ -115,9 +118,11 @@ server/
   tests/             15 tests (protocol, concurrency, failure paths)
 scripts/
   configure_wifi.sh  credentials → sdkconfig.local → BSP patch → build
-  gen_avatars.py     fetch DiceBear variants and bake them into C arrays
+  gen_avatars.py     fetch DiceBear variants and write the .bin blobs
   patch_bsp_display.sh  display-driver fixes after the component manager refetches
 docs/images/         README assets
+.github/workflows/   server tests + ESP-IDF build
+LICENSE              MIT
 ```
 
 ## Quick start
@@ -323,6 +328,11 @@ Deliberate for v0:
 
 Next: resumable/deduplicated uploads, a shared token between device and server, OTA, and locally
 animated avatars (two baked frames) instead of a static PNG.
+
+## License
+
+MIT — see [LICENSE](LICENSE). The DiceBear `gaze` style is CC0 1.0 and the Waveshare BSP is
+Apache-2.0; both are attributed under Credits.
 
 ## Credits
 

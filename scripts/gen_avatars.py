@@ -54,7 +54,7 @@ STATES = {
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "firmware" / "assets" / "avatars"
-OUT_C = ROOT / "firmware" / "main" / "avatars.c"
+BIN_DIR = ROOT / "firmware" / "main" / "assets"
 OUT_H = ROOT / "firmware" / "main" / "avatars.h"
 
 
@@ -83,44 +83,22 @@ def to_rgb565(image: Image.Image) -> bytes:
 
 
 def main() -> None:
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
     declarations = []
-    definitions = []
     for name, spec in STATES.items():
         style, seed, params = spec["style"], spec["seed"], spec["params"]
         image = fetch(style, seed, params).resize((SIZE, SIZE), Image.LANCZOS)
         data = to_rgb565(image)
         assert len(data) == SIZE * SIZE * 2, len(data)
-        rows = []
-        for i in range(0, len(data), 16):
-            rows.append("    " + ", ".join(f"0x{b:02x}" for b in data[i : i + 16]) + ",")
-        definitions.append(
-            f"static const uint8_t avatar_{name}_data[] = {{\n"
-            + "\n".join(rows)
-            + "\n};\n\n"
-            + f"const lv_image_dsc_t avatar_{name} = {{\n"
-            + "    .header = {\n"
-            + "        .magic = LV_IMAGE_HEADER_MAGIC,\n"
-            + "        .cf = LV_COLOR_FORMAT_RGB565,\n"
-            + f"        .w = {SIZE},\n"
-            + f"        .h = {SIZE},\n"
-            + f"        .stride = {SIZE * 2},\n"
-            + "    },\n"
-            + f"    .data_size = {len(data)},\n"
-            + f"    .data = avatar_{name}_data,\n"
-            + "};\n"
-        )
+        (BIN_DIR / f"avatar_{name}.bin").write_bytes(data)
         declarations.append(f"extern const lv_image_dsc_t avatar_{name};")
+        print(f"wrote avatar_{name}.bin ({len(data)} bytes)")
 
     OUT_H.write_text(
-        "#pragma once\n\n#include \"lvgl.h\"\n\n"
-        + "\n".join(declarations)
-        + "\n",
+        "#pragma once\n\n#include \"lvgl.h\"\n\n" + "\n".join(declarations) + "\n",
         encoding="utf-8",
     )
-    OUT_C.write_text(
-        "#include \"avatars.h\"\n\n" + "\n".join(definitions), encoding="utf-8"
-    )
-    print("wrote", OUT_C, OUT_H)
+    print("wrote", OUT_H)
 
 
 if __name__ == "__main__":
