@@ -122,6 +122,8 @@ scripts/
   patch_bsp_display.sh  display-driver fixes after the component manager refetches
 docs/images/         README assets
 .github/workflows/   server tests + ESP-IDF build
+CONTRIBUTING.md      dev setup, tests, PR rules
+SECURITY.md          private reporting, trust model
 LICENSE              MIT
 ```
 
@@ -340,6 +342,12 @@ Deliberate for v0:
 
 Next: resumable/deduplicated uploads, a shared token between device and server, OTA, and locally
 animated avatars (two baked frames) instead of a static PNG.
+
+## Contributing
+
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup,
+test commands and review rules. In short: `make test`, `make lint`, and a firmware build must
+pass; never commit credentials; describe what you tested on hardware.
 
 ## License
 
