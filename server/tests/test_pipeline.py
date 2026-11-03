@@ -312,3 +312,70 @@ def test_process_recording_runs_diarization_when_enabled(tmp_path, monkeypatch):
     transcript = (wav.parent / "transcript.txt").read_text()
     assert "SPEAKER_0" in transcript
     assert meta["notes"]
+
+
+def test_llm_chat_merges_extra_body(monkeypatch):
+    seen = {}
+
+    def opener(request, timeout=None):
+        seen.update(json.loads(request.data))
+        body = json.dumps(chat_payload('{"summary": "x"}')).encode()
+
+        class R(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        return R(body)
+
+    monkeypatch.setattr(pipeline.urllib.request, "urlopen", opener)
+    settings = Settings(llm_max_tokens=32, llm_extra_body={"chat_template_kwargs": {"enable_thinking": False}})
+    _llm_chat("prompt", settings)
+    assert seen["chat_template_kwargs"] == {"enable_thinking": False}
+    assert seen["max_tokens"] == 32
+
+
+def test_build_notes_accepts_topics_as_string(monkeypatch):
+    monkeypatch.setattr(
+        pipeline,
+        "_llm_summary",
+        lambda transcript, settings: {
+            "title": "T",
+            "summary": "S",
+            "topics": "alpha, beta , gamma",
+            "action_items": [],
+        },
+    )
+    _, md = build_notes(
+        recording_id="20260101-000000-abcd",
+        segments=[Segment(0, 1, "hi")],
+        language="en",
+        duration=1,
+        device="dev",
+        settings=Settings(),
+    )
+    assert "alpha, beta, gamma" in md
+
+
+def test_build_notes_joins_summary_list(monkeypatch):
+    monkeypatch.setattr(
+        pipeline,
+        "_llm_summary",
+        lambda transcript, settings: {
+            "title": "T",
+            "summary": ["One.", "Two."],
+            "topics": [],
+            "action_items": [],
+        },
+    )
+    _, md = build_notes(
+        recording_id="20260101-000000-abcd",
+        segments=[Segment(0, 1, "hi")],
+        language="en",
+        duration=1,
+        device="dev",
+        settings=Settings(),
+    )
+    assert "One. Two." in md

@@ -2,9 +2,21 @@
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+
+def _json_env(name: str) -> dict:
+    raw = os.environ.get(name)
+    if not raw:
+        return {}
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return value if isinstance(value, dict) else {}
 
 
 def _flag(name: str, default: bool = False) -> bool:
@@ -51,6 +63,10 @@ class Settings:
     )
     llm_max_tokens: int = field(
         default_factory=lambda: int(os.environ.get("PLAUD_LLM_MAX_TOKENS", "0"))
+    )
+    # Extra JSON merged into every chat request, e.g. provider-specific switches.
+    llm_extra_body: dict = field(
+        default_factory=lambda: _json_env("PLAUD_LLM_EXTRA_BODY")
     )
 
     # Process inline instead of in a background task (used by tests).

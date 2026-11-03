@@ -2,7 +2,7 @@
 """Check the note-generation path against an OpenAI-compatible endpoint.
 
     PLAUD_LLM_BASE_URL=http://127.0.0.1:8080/v1 \
-    PLAUD_LLM_MODEL=minicpm-v-4.7-1b \
+    PLAUD_LLM_MODEL=minicpm5-1b \
         python tools/check_summary.py [transcript.txt]
 
 Exits 1 when the endpoint returns no usable summary, so it can gate a smoke run.

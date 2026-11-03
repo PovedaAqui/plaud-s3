@@ -123,6 +123,7 @@ def _llm_chat(prompt: str, settings: Settings) -> dict | None:
     }
     if settings.llm_max_tokens > 0:
         payload["max_tokens"] = settings.llm_max_tokens
+    payload.update(settings.llm_extra_body)
     body = json.dumps(payload).encode()
     request = urllib.request.Request(
         settings.llm_base_url.rstrip("/") + "/chat/completions",
@@ -217,11 +218,18 @@ def build_notes(
         "",
     ]
     if notes:
-        lines += ["## Summary", "", str(notes["summary"]).strip(), ""]
+        summary = notes["summary"]
+        if isinstance(summary, (list, tuple)):
+            summary = " ".join(str(part).strip() for part in summary)
+        lines += ["## Summary", "", str(summary).strip(), ""]
         actions = notes.get("action_items") or []
+        if isinstance(actions, str):
+            actions = [part.strip() for part in actions.split("\n") if part.strip()]
         if actions:
             lines += ["## Action items", ""] + [f"- {a}" for a in actions] + [""]
         topics = notes.get("topics") or []
+        if isinstance(topics, str):
+            topics = [part.strip() for part in topics.split(",") if part.strip()]
         if topics:
             lines += ["## Topics", "", ", ".join(map(str, topics)), ""]
     elif segments:

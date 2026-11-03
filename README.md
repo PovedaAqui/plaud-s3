@@ -274,29 +274,41 @@ speech clip streamed through the same protocol transcribes correctly and lands i
 The offline path was exercised with the server stopped: the board recorded to `/storage`, the
 pending file survived a reboot, and it uploaded itself once the server returned.
 
-### Testing summaries with MiniCPM-V 4.7 1B
+### Testing summaries with MiniCPM5-1B
 
-The note path is smoke-tested against **MiniCPM-V 4.7 1B** (`Q4_K_M`, 672 MB). It is a vision
-model, but text-only prompts work without the projector, and it is fast enough on a laptop GPU.
+The note path is smoke-tested against **openbmb/MiniCPM5-1B** (`Q8_0`, 1.1 GB). There is no
+official GGUF, so convert it once with a current llama.cpp:
 
 ```bash
-# serve it with llama.cpp (CUDA build shown; CPU works too)
-llama-server -m MiniCPM-V-4_7-1B-Q4_K_M.gguf --port 8080 -c 8192 -ngl 99 \
-  -a minicpm-v-4.7-1b
+# convert + quantise (the converter and runtime must know tokenizer.ggml.pre=minicpm5;
+# builds before late 2026 fail with "unknown pre-tokenizer type")
+python convert_hf_to_gguf.py openbmb/MiniCPM5-1B --outfile MiniCPM5-1B-f16.gguf --outtype f16
+llama-quantize MiniCPM5-1B-f16.gguf MiniCPM5-1B-Q8_0.gguf Q8_0
 
-# exercise summary + action items
-PLAUD_LLM_BASE_URL=http://127.0.0.1:8080/v1 PLAUD_LLM_MODEL=minicpm-v-4.7-1b \
-  python tools/check_summary.py
+llama-server -m MiniCPM5-1B-Q8_0.gguf --port 8080 -c 8192 -ngl 99 \
+  -a minicpm5-1b --jinja
 ```
 
-Point the ingest server at the same URL to get summaries on real recordings. Note generation
-makes **two small calls** — notes first, then action items — because a 1B model follows
-single-purpose prompts far more reliably, and a malformed action-items answer cannot cost the
-summary. On a five-person launch transcript it returns three real commitments and no fabricated
-items for a speech with none.
+MiniCPM5 is a hybrid reasoning model: with thinking on, a 400-token budget is consumed before the
+answer starts. Disable it per request through `PLAUD_LLM_EXTRA_BODY`, which is merged into every
+chat payload:
 
-A 1B model is a plumbing test, not a quality bar: summaries are terse and can drift on long
-recordings. Use a larger model for notes you intend to keep.
+```bash
+export PLAUD_LLM_BASE_URL=http://127.0.0.1:8080/v1
+export PLAUD_LLM_MODEL=minicpm5-1b
+export PLAUD_LLM_MAX_TOKENS=400
+export PLAUD_LLM_EXTRA_BODY='{"chat_template_kwargs":{"enable_thinking":false},"frequency_penalty":0.5,"presence_penalty":0.5}'
+python tools/check_summary.py
+```
+
+With those settings a five-person launch transcript summarises in **1.1 s** with five
+commitments, and the JFK speech returns no actions. Note generation makes **two small calls** —
+notes first, then action items — because a 1B model follows single-purpose prompts far more
+reliably, and a malformed action-items answer cannot cost the summary.
+
+A 1B model is a plumbing test, not a quality bar: on a rhetorical one-liner it still invents an
+action item and repeats itself without the penalties above. Use a larger model (or accept
+editing) for notes you intend to keep.
 
 The two switches and the touch panel still need a human.
 
