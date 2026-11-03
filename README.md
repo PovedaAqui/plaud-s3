@@ -1,13 +1,55 @@
 # plaud-s3
 
-A Plaud-Note-style voice recorder built on the **Waveshare ESP32-S3-Touch-AMOLED-1.75C**: tap the screen, talk, and the recording is transcribed and written into your Obsidian vault by a server you own.
+**A Plaud-Note-style voice recorder you own end to end.** An ESP32-S3 watch-style board records
+dual-mic audio, streams it over Wi-Fi to a server on your LAN, and the server writes the
+transcript, summary and Markdown note straight into your Obsidian vault.
 
-This is not a Plaud-compatible client. It is the other half of the research report's "capture + ownership" gap: Plaud's own app is bypassed entirely.
+No vendor cloud, no subscription minutes, no phone app in the middle.
 
+![ESP-IDF](https://img.shields.io/badge/ESP--IDF-5.5.5-blue)
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)
+![Hardware](https://img.shields.io/badge/hardware-ESP32--S3-informational)
+![Tests](https://img.shields.io/badge/tests-15%20passing-brightgreen)
+
+![The recorder in hand](docs/images/device-ready.jpg)
+
+*Prototype in hand — this photo is from an earlier UI build; the current screen uses the
+avatar states below.*
+
+---
+
+## What it does
+
+- **Record** — tap the screen or a side key; the ES7210 reads two digital mics at 16 kHz.
+- **Pause and resume** — tap again; the paused stretch is dropped server-side, so the WAV has
+  no silent gap and the timer excludes it.
+- **Transcribe** — `faster-whisper` on your machine (or any GPU box you point it at).
+- **Label speakers** — optional `pyannote` diarization, with a Hugging Face token.
+- **Write notes** — summaries, action items and topics from any OpenAI-compatible endpoint
+  (Ollama by default), with an honest "no summary" fallback when no LLM answers.
+- **Publish** — `audio.wav`, `transcript.{txt,json}`, `notes.md`, `meta.json` per recording,
+  plus a copy under `<vault>/Plaud/`.
+
+If the model is unreachable, nothing is invented: the note says so and keeps the raw transcript.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    dev["ESP32-S3<br/>ES7210 dual mic<br/>16 kHz stereo → mono"]
+    ws["WebSocket<br/>100 ms PCM chunks"]
+    api["FastAPI ingest<br/>streaming WAV writer"]
+    asr["faster-whisper<br/>(CPU or CUDA)"]
+    dia["pyannote<br/>(optional)"]
+    llm["Ollama / any<br/>OpenAI-compatible API"]
+    vault[("Obsidian vault<br/>Plaud/*.md")]
+
+    dev --> ws --> api --> asr --> dia --> llm --> vault
+    api -.->|audio.wav| vault
 ```
-ESP32-S3 (dual mic, 16 kHz)  --Wi-Fi/WebSocket-->  FastAPI ingest  -->  faster-whisper  -->  Markdown notes
-      touch UI, timer              PCM s16le            WAV + metadata        transcript            vault/
-```
+
+The device is a thin capture client on purpose: it holds no model, no transcript and no state
+beyond the current session.
 
 ## Hardware
 
@@ -15,83 +57,74 @@ ESP32-S3 (dual mic, 16 kHz)  --Wi-Fi/WebSocket-->  FastAPI ingest  -->  faster-w
 |---|---|
 | Board | Waveshare ESP32-S3-Touch-AMOLED-1.75C |
 | MCU | ESP32-S3, 32 MB flash, 8 MB octal PSRAM |
-| Display | 1.75" 466×466 AMOLED (CO5300), CST9217 touch |
+| Display | 1.75″ 466×466 QSPI AMOLED (CO5300), CST9217 touch |
 | Audio | dual digital mics via ES7210 ADC, ES8311 codec, speaker |
-| Sensors/power | QMI8658 IMU, AXP2101 PMIC |
-| USB | native USB-Serial/JTAG (`303a:1001`), COM4 on this machine |
+| Sensors / power | QMI8658 IMU, AXP2101 PMIC |
+| Buttons | Key1 → GPIO0 (BOOT); Key2 → AXP2101 `PWRON` (not a GPIO) |
+| USB | native USB-Serial/JTAG (`303a:1001`) |
 
-The factory firmware (Brookesia + Xiaozhi chat UI) is preserved in `backups/` before flashing.
+A 16 MB flash backup covering the bootloader, partition table, `nvs` and factory app was taken before the first flash.
 
 ## Repository layout
 
 ```
-firmware/            ESP-IDF 5.5 application
-  main/main.c        boot: display, UI, Wi-Fi, recorder task
-  main/recorder.c    codec → downmix → WebSocket state machine
-  main/ui.c          LVGL screen: status, timer, REC/STOP button
-server/              Python ingest + transcription
+firmware/
+  main/main.c        boot: display, UI, Wi-Fi, recorder, buttons
+  main/recorder.c    codec → downmix → WebSocket state machine (idle/record/pause/stop)
+  main/ui.c          LVGL screen: DiceBear avatar, timer, hint, long-press stop
+  main/buttons.c     GPIO0 polling + AXP2101 PWRON interrupt-status polling
+  main/avatars.c     baked 180×180 RGB565 avatars (generated)
+  assets/avatars/    source PNGs from DiceBear
+server/
   app/main.py        /ws/audio, /health, /recordings
-  app/pipeline.py    faster-whisper, optional pyannote, LLM notes
+  app/pipeline.py    ASR, optional diarization, LLM notes, vault export
   app/wavio.py       streaming WAV writer
-  tools/send_wav.py  replay a WAV file through the same protocol
+  tools/send_wav.py  replay a WAV through the real protocol
+  tests/             15 tests (protocol, concurrency, failure paths)
+scripts/
+  configure_wifi.sh  credentials → sdkconfig.local → BSP patch → build
+  gen_avatars.py     fetch DiceBear variants and bake them into C arrays
+  patch_bsp_display.sh  display-driver fixes after the component manager refetches
+docs/images/         README assets
 ```
 
-## Server
+## Quick start
+
+### 1. Server
 
 ```bash
 cd server
 python3 -m venv .venv && .venv/bin/pip install -e .[dev]
-PLAUD_DATA_DIR=./data PLAUD_VAULT_DIR="$HOME/Documents/Obsidian" \
+PLAUD_DATA_DIR=./data \
+PLAUD_VAULT_DIR="$HOME/Documents/Obsidian" \
   .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Configuration is environment-only (see `.env.example`):
+First recording downloads the ASR model (`small` by default, ~460 MB). Configuration is
+environment-only; see [`.env.example`](server/.env.example).
 
-| Variable | Default | Meaning |
-|---|---|---|
-| `PLAUD_DATA_DIR` | `./data` | audio, transcripts, notes per recording |
-| `PLAUD_VAULT_DIR` | unset | if set, notes are also copied to `<dir>/Plaud/` |
-| `PLAUD_ASR_MODEL` | `small` | faster-whisper model (`tiny`, `base`, `small`, `medium`, `large-v3`) |
-| `PLAUD_ASR_DEVICE` / `PLAUD_ASR_COMPUTE` | `cpu` / `int8` | `cuda` + `float16` if you have a GPU |
-| `PLAUD_LANGUAGE` | auto | force a language code |
-| `PLAUD_DIARIZE` / `PLAUD_HF_TOKEN` | off | pyannote speaker labels |
-| `PLAUD_LLM_BASE_URL` / `PLAUD_LLM_MODEL` | Ollama `127.0.0.1:11434/v1` / `llama3.2` | any OpenAI-compatible endpoint |
-| `PLAUD_LLM_TIMEOUT` | 8 | seconds before falling back to "no summary" |
+### 2. Credentials and firmware
 
-If no LLM answers, the notes file says so and contains the raw transcript — no invented summary.
-
-### Protocol
-
-1. device → text `{"type":"start","device":"plaud-s3-b0:10","rate":16000}`
-2. server → text `{"type":"started","id":"20261103-165239"}`
-3. device → binary frames of 16 kHz mono s16le (6400 bytes = 200 ms is fine)
-4. device → text `{"type":"pause"}` or `{"type":"resume"}` — the server keeps the WAV open
-   and discards binary frames while paused
-5. device → text `{"type":"stop"}`
-6. server closes the WAV, transcribes, writes `audio.wav`, `transcript.{txt,json}`, `notes.md`, `meta.json`, then replies `{"type":"done", ...}`
-
-## Firmware
-
-Credentials live in `scripts/wifi.env` (gitignored), not in menuconfig, so the build
-can be reproduced without editing generated config:
+Credentials never live in git. `scripts/wifi.env` and `firmware/sdkconfig.local` are ignored.
 
 ```bash
 cp scripts/wifi.env.example scripts/wifi.env
-$EDITOR scripts/wifi.env        # SSID, password, ws:// URL of the server
-./scripts/configure_wifi.sh     # regenerates sdkconfig, patches the BSP, builds
+$EDITOR scripts/wifi.env          # 2.4 GHz SSID + password + ws://<server-ip>:8000/ws/audio
+./scripts/configure_wifi.sh       # regenerates sdkconfig, patches the BSP, builds
 ```
 
-The USB device is currently attached to WSL as `/dev/ttyACM0`:
+Requires ESP-IDF 5.5.x: `source ~/esp-idf/export.sh` first.
+
+### 3. Flash
 
 ```bash
-source ~/esp-idf/export.sh
 cd firmware
 idf.py -p /dev/ttyACM0 flash monitor
 ```
 
-To flash from Windows instead, attach the device back with
-`usbipd detach --busid 4-1` and write the three images individually — writing a
-merged image at `0x0` would also overwrite the `nvs` partition at `0x9000`:
+On WSL with the device still bound to Windows, flash from PowerShell instead — and write the
+three images individually, because a merged image at `0x0` would also overwrite the `nvs`
+partition at `0x9000`:
 
 ```powershell
 py -3 -m esptool --chip esp32s3 -p COM4 -b 921600 write_flash `
@@ -99,32 +132,16 @@ py -3 -m esptool --chip esp32s3 -p COM4 -b 921600 write_flash `
   0x0 bootloader.bin 0x8000 partition-table.bin 0x10000 plaud_s3.bin
 ```
 
-### Behaviour
+### 4. Use it
 
-- Boots to a dark screen with a DiceBear avatar for the current state, a timer and a tap hint.
-- Boot pre-connects the WebSocket so a tap starts capture in well under a second.
-- Tap the avatar: opens the ES7210 at 16 kHz stereo, downmixes to mono, streams 100 ms chunks.
-- Tap again: pause (mic closed, timer frozen, audio not appended server-side).
-- Tap a third time: resume into the same WAV. Hold the avatar: stop and save.
-- Key1 mirrors this (tap cycles record/pause/resume, hold stops). Key2 stops when active,
-  otherwise starts; long-press power-off stays with the PMIC.
-- If Wi-Fi or the server is down the screen shows the offline avatar and the mic is closed;
-  nothing is buffered on flash yet.
+Tap the avatar to record, tap to pause, tap to resume, hold to stop and save. The note appears
+in `<vault>/Plaud/` a few seconds later.
 
-### Physical buttons
+## UI states
 
-Both side buttons act as record toggles; the power key keeps its PMIC behaviour.
+![Avatar states](docs/images/avatars.png)
 
-| Button | Wiring | Short press | Long press |
-|---|---|---|---|
-| Key1 (BOOT) | GPIO0 → GND, 10K pull-up, 100nF | start/stop | start/stop |
-| Key2 (PWR) | AXP2101 PWRON → GND via 510R | start/stop | left to the PMIC (power off) |
-
-Key1 is polled every 20 ms with a 3-sample debounce. Key2 is not a GPIO at all: the
-AXP2101 latches `PKEY_SHORT`/`PKEY_LONG` in `INTSTS2`, which the firmware polls over I2C
-and clears with write-1-to-clear semantics.
-
-All states use the same `gaze` mascot (10.x); body colour and eye variant carry the mood.
+All states share one DiceBear `gaze` mascot (10.x); body colour and eye variant carry the mood.
 
 | State | Shape | Eyes | Body | Hint |
 |---|---|---|---|---|
@@ -136,83 +153,109 @@ All states use the same `gaze` mascot (10.x); body colour and eye variant carry 
 | offline | circle | `bars` | `#fbb271` | TAP TO RETRY |
 
 DiceBear exposes variants as `<component>Variant` query parameters (`shapeVariant`,
-`eyesVariant`, `spacingVariant`, `animationVariant`) and colours as `bodyColor`,
-`inkColor`, `glintColor`; the generator pins them per state.
+`eyesVariant`, …) and colours as `bodyColor` / `inkColor` / `glintColor`. The generator pins
+them, so a style refresh cannot silently change the look.
 
-Avatars are fetched once and baked into `firmware/main/avatars.c` as LVGL RGB565 images
-(180×180, composited onto black). Regenerate after changing seeds or styles:
+## Controls
 
-```bash
-pip install pillow
-python3 scripts/gen_avatars.py     # writes firmware/assets/avatars/*.png + avatars.c/h
-```
+| Input | Idle | Recording | Paused |
+|---|---|---|---|
+| Tap avatar | start | pause | resume |
+| Hold avatar | — | stop & save | stop & save |
+| Key1 tap | start | pause | resume |
+| Key1 hold | — | stop & save | stop & save |
+| Key2 tap | start | stop & save | stop & save |
+| Key2 hold | handled by the PMIC | handled by the PMIC | handled by the PMIC |
 
-## Verified so far
+Key1 is a plain GPIO0 button (10K pull-up, 100 nF debounce) polled every 20 ms with a
+3-sample debounce. Key2 pulls the AXP2101 `PWRON` pin: presses are only visible in `INTSTS2`
+(`PKEY_SHORT` / `PKEY_LONG`), which the firmware polls over I2C and clears with
+write-1-to-clear semantics. Long-press power-off stays with the PMIC.
 
-- Server: 4 tests cover WAV header correctness, WebSocket ingest, honest no-LLM notes, vault publishing.
-- End-to-end: an 11 s speech sample streamed through the real protocol was transcribed by `tiny` as the JFK line, notes written and published to a vault directory.
-- Firmware: builds with ESP-IDF 5.5.5, flashes and boots on the real board. Display, touch
-  controller (CST9217) and PMIC initialise; the mic self-test reads 32,000 samples per second
-  with a non-zero signal level (RMS 35-46, peak 280-414 in a quiet room).
-- Wi-Fi: joins the 2.4 GHz AP (channel 11), gets `192.168.1.47`, and keeps a WebSocket open to
-  the ingest server from boot (connected ~1.2 s after DHCP).
-- End to end: autotest recordings from the board arrived at the server as `plaud-s3-cbb010`,
-  with the firmware's frame counter matching the server's WAV duration exactly (e.g. 88,000
-  samples = 5.5 s), zero dropped frames, and the note published to `Obsidian/Plaud/`.
-- Not verified: the physical tap itself. The REC button's click handler is wired and logged,
-  but no one has touched the panel; the same `recorder_toggle()` path is exercised by the
-  autotest build.
+## Protocol
 
-### Display notes
+One WebSocket, JSON text frames plus binary PCM.
 
-The panel is a 466×466 QSPI AMOLED driven through `esp_lv_adapter` with partial refresh.
-Two BSP adjustments are required and are re-applied by `scripts/patch_bsp_display.sh`
-(the component manager overwrites them on a clean fetch):
+| Direction | Message | Meaning |
+|---|---|---|
+| device → server | `{"type":"start","device":"…","rate":16000}` | open a session; only 16 kHz accepted |
+| server → device | `{"type":"started","id":"20261103-184124-ab12"}` | session id (`YYYYMMDD-HHMMSS-xxxx`) |
+| device → server | binary frames | mono s16le, any chunk size |
+| device → server | `{"type":"pause"}` / `{"type":"resume"}` | frames between them are discarded |
+| server → device | `{"type":"paused"}` / `{"type":"resumed"}` | acknowledgement |
+| device → server | `{"type":"stop"}` | close the WAV and run the pipeline |
+| server → device | `{"type":"done","id":"…","duration":42.0,"notes":"…"}` | pipeline finished (or failed; audio is kept) |
+| both | `{"type":"ping"}` / `{"type":"pong"}` | keepalive |
 
-- render bands are 20 rows instead of 50 — a 180 px repaint at 50 rows exceeds the DMA
-  budget and returns `ESP_ERR_NO_MEM` from `esp_lcd_panel_draw_bitmap`;
-- `max_transfer_sz` is capped at 50 rows so the SPI driver never reserves a full-screen
-  transfer buffer.
+A dropped socket finalises the recording exactly like `stop` does. Two devices can record at
+once; session ids are unique per start.
 
-Even with the stock 50-row bands, this panel showed stale bands after a large restyle
-(half a circle keeping the previous colour). The UI therefore changes avatars and text
-rather than restyling large widgets, and state changes repaint complete objects.
+## Configuration
 
-### Smoke-test hook
+Server (environment):
 
-`CONFIG_PLAUD_AUTOTEST_SECONDS` (default 0) records automatically for N seconds after boot and
-then stops. It exists so the whole path can be exercised over serial without touching the panel:
+| Variable | Default | Meaning |
+|---|---|---|
+| `PLAUD_DATA_DIR` | `./data` | recordings, transcripts, notes |
+| `PLAUD_VAULT_DIR` | unset | also copy notes to `<dir>/Plaud/` |
+| `PLAUD_ASR_MODEL` | `small` | `tiny`…`large-v3` |
+| `PLAUD_ASR_DEVICE` / `PLAUD_ASR_COMPUTE` | `cpu` / `int8` | `cuda` + `float16` for GPU |
+| `PLAUD_LANGUAGE` | auto | force a language |
+| `PLAUD_DIARIZE` / `PLAUD_HF_TOKEN` | off | pyannote speaker labels |
+| `PLAUD_LLM_BASE_URL` / `PLAUD_LLM_MODEL` | Ollama `127.0.0.1:11434/v1` / `llama3.2` | notes backend |
+| `PLAUD_LLM_TIMEOUT` | 8 | seconds before "no summary" fallback |
 
-```bash
-printf 'CONFIG_PLAUD_AUTOTEST_SECONDS=8\n' >> firmware/sdkconfig.local
-rm firmware/sdkconfig && cd firmware && SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.local" idf.py build
-```
+Firmware (`menuconfig → Plaud-S3 recorder`): Wi-Fi SSID/password, server URL, device name,
+channels, and `PLAUD_AUTOTEST_SECONDS` (0 = off).
 
-Remember to remove the line and regenerate `sdkconfig` afterwards.
-
-## Tests
+## Testing
 
 ```bash
 cd server && PYTHONPATH=. ../.venv/bin/python -m pytest -q   # 15 tests
 ```
 
 Covered: WAV header integrity, ingest, pause/resume (frames dropped while paused),
-stop-while-paused, abrupt disconnect finalisation, malformed JSON, unsupported sample
-rate, two concurrent sessions (unique session ids), pipeline crash isolation, honest
-no-LLM notes, vault publishing, and the HTTP surface.
+stop-while-paused, abrupt disconnect finalisation, malformed JSON, unsupported sample rate,
+two concurrent sessions, pipeline crash isolation, honest no-LLM notes, vault publishing and
+the HTTP surface.
 
-On-device, `CONFIG_PLAUD_AUTOTEST_SECONDS` runs record → pause → resume → stop after
-boot, so the whole radio/audio path can be exercised from serial without touching the
-panel. A full 11 s speech clip streamed through the same protocol transcribes
-correctly and lands in the vault.
+On device, `CONFIG_PLAUD_AUTOTEST_SECONDS=N` runs record → pause → resume → stop after boot, so
+the whole radio/audio path can be exercised from serial without touching the panel. An 11 s
+speech clip streamed through the same protocol transcribes correctly and lands in the vault.
 
-Still manual by nature: the two physical switches and the touch panel.
+The two switches and the touch panel still need a human.
 
-## Known limits (deliberate, for v0)
+## Troubleshooting
 
-- **Streaming only.** No offline recording, no flash ring buffer. If Wi-Fi drops mid-recording the audio is lost.
-- **16 kHz mono.** Enough for ASR; not a hi-fi recorder.
-- **No authentication.** The WebSocket is open on the LAN. Do not expose it to the internet as-is.
-- **Single concurrent pipeline per process** is fine for one device; `faster-whisper` is not parallelised across recordings.
-- **No wake word, no VAD gating** on the device; recording starts on tap.
-- **Speaker labels need a Hugging Face token** and add minutes per hour of audio on CPU.
+| Symptom | Cause / fix |
+|---|---|
+| `esp_lcd ... ESP_ERR_NO_MEM` and half-drawn widgets | BSP render bands exceed the DMA budget. `scripts/patch_bsp_display.sh` sets 20-row bands and caps `max_transfer_sz`; `configure_wifi.sh` applies it, and a clean component fetch requires re-running it |
+| Stale bands after a large restyle | Partial refresh on this panel. Change avatars/text rather than restyling large widgets; the UI does that already |
+| `usbipd bind` access denied | Needs an elevated shell; `attach --wsl` then gives `/dev/ttyACM0` |
+| Device connects to Wi-Fi but not the server | WSL mirrored networking plus Windows firewall. Allow TCP 8000 inbound or run the ingest on the Windows host |
+| `no Wi-Fi - check config` on screen | `scripts/wifi.env` empty; rerun `configure_wifi.sh` |
+| Notes say "No language model was reachable" | Start Ollama or set `PLAUD_LLM_BASE_URL`; the transcript is unaffected |
+| Diarization fails | `PLAUD_HF_TOKEN` missing or the pyannote model terms were not accepted |
+
+## Limits and roadmap
+
+Deliberate for v0:
+
+- **Streaming only.** No offline ring buffer; if Wi-Fi drops mid-recording the audio is lost.
+- **16 kHz mono.** Enough for ASR, not a hi-fi recorder.
+- **No authentication.** The WebSocket is open on the LAN — do not expose it to the internet.
+- **One pipeline at a time.** `faster-whisper` is not parallelised across recordings.
+- **No OTA, no wake word, no VAD gating** on the device.
+
+Next: flash ring buffer with resumable upload, a shared token between device and server, OTA,
+and locally animated avatars (two baked frames) instead of a static PNG.
+
+## Credits
+
+- [Waveshare ESP32-S3-Touch-AMOLED-1.75C BSP](https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-1.75C) — Apache-2.0
+- [DiceBear](https://www.dicebear.com/) `gaze` style — CC0 1.0
+- [LVGL](https://lvgl.io/) — MIT · [faster-whisper](https://github.com/SYSTRAN/faster-whisper) — MIT
+- [pyannote.audio](https://github.com/pyannote/pyannote-audio) — MIT · [FastAPI](https://fastapi.tiangolo.com/) — MIT
+
+This is an independent project. It is not affiliated with, endorsed by, or supported by
+Plaud Inc.; “Plaud” is used only to describe the interaction pattern.
