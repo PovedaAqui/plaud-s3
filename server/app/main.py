@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from datetime import datetime
-from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
@@ -62,13 +61,13 @@ async def _finish(ws: WebSocket, state: dict, started_at: float) -> None:
     duration = state["writer"].duration
     log.info("recording %s finished: %.1fs from %s", state["id"], duration, state["device"])
 
-    kwargs = dict(
-        recording_id=state["id"],
-        wav_path=state["wav"],
-        device=state["device"],
-        duration=duration,
-        settings=settings,
-    )
+    kwargs = {
+        "recording_id": state["id"],
+        "wav_path": state["wav"],
+        "device": state["device"],
+        "duration": duration,
+        "settings": settings,
+    }
     meta = None
     if settings.sync_pipeline:
         try:
@@ -87,8 +86,8 @@ async def _finish(ws: WebSocket, state: dict, started_at: float) -> None:
                 "notes": meta["notes"] if meta else None,
             }
         )
-    except Exception:
-        pass  # device already disconnected
+    except Exception as exc:
+        log.debug("device disconnected before ack: %s", exc)
     if meta:
         log.info("notes: %s", meta["notes"])
 

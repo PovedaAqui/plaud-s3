@@ -16,3 +16,7 @@ scripts/wifi.env
 .idea/
 *.swp
 .DS_Store
+
+.coverage
+coverage.xml
+htmlcov/

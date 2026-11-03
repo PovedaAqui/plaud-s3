@@ -12,6 +12,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+
 from .config import Settings
 
 log = logging.getLogger(__name__)
@@ -46,10 +48,8 @@ def _get_whisper(settings: Settings):
     return _whisper
 
 
-def read_pcm(wav_path: Path) -> "np.ndarray":
+def read_pcm(wav_path: Path) -> np.ndarray:
     """Decode our own 16 kHz mono WAV without an ffmpeg dependency."""
-    import numpy as np
-
     with wave.open(str(wav_path)) as wav:
         if wav.getsampwidth() != 2 or wav.getnchannels() != 1:
             raise ValueError("expected 16-bit mono WAV")
@@ -228,8 +228,10 @@ def build_notes(
         lines += [
             "## Summary",
             "",
-            "_No language model was reachable, so no summary was generated. "
-            "The transcript below is unmodified._",
+            (
+                "_No language model was reachable, so no summary was generated. "
+                "The transcript below is unmodified._"
+            ),
             "",
         ]
 
@@ -270,10 +272,14 @@ def process_recording(
 
     published: Path | None = None
     if settings.vault_dir:
-        publish_dir = settings.vault_dir / "Plaud"
-        publish_dir.mkdir(parents=True, exist_ok=True)
-        published = publish_dir / f"{recording_id}-{_slug(title)}.md"
-        published.write_text(markdown, encoding="utf-8")
+        try:
+            publish_dir = settings.vault_dir / "Plaud"
+            publish_dir.mkdir(parents=True, exist_ok=True)
+            published = publish_dir / f"{recording_id}-{_slug(title)}.md"
+            published.write_text(markdown, encoding="utf-8")
+        except OSError as exc:  # a broken vault path must not lose the recording
+            log.warning("vault publish failed: %s", exc)
+            published = None
 
     meta = {
         "id": recording_id,

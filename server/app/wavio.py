@@ -57,7 +57,7 @@ class WavWriter:
     def duration(self) -> float:
         return self.frames / self.rate if self.rate else 0.0
 
-    def __enter__(self) -> "WavWriter":
+    def __enter__(self) -> WavWriter:
         return self
 
     def __exit__(self, *exc: object) -> None:

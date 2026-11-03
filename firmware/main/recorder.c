@@ -8,6 +8,7 @@
 
 #include "bsp/esp-bsp.h"
 #include "esp_codec_dev.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_websocket_client.h"
@@ -24,7 +25,7 @@ static const char *TAG = "recorder";
 #define CHUNK_MS 100
 #define CHUNK_BYTES (SAMPLE_RATE * CHUNK_MS / 1000 * 2 * CONFIG_PLAUD_CHANNELS)
 #define MONO_BYTES (SAMPLE_RATE * CHUNK_MS / 1000 * 2)
-#define UPLOAD_CHUNK 4096
+#define UPLOAD_CHUNK 16384
 #define UPLOAD_RETRY_MS (CONFIG_PLAUD_UPLOAD_RETRY_S * 1000)
 
 #define WS_CONNECTED BIT0
@@ -503,6 +504,8 @@ void recorder_init(void)
         ui_set_state(UI_ERROR);
         ui_set_status("storage unavailable");
     }
+    ESP_LOGI(TAG, "heap=%u psram=%u", esp_get_free_heap_size(),
+             heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
     ui_set_state(UI_CONNECTING);
     bool ok = ws_ensure();
     ui_set_state(UI_READY);

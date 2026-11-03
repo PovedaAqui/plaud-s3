@@ -3,13 +3,16 @@ PORT ?= /dev/ttyACM0
 IDF_EXPORT ?= $(HOME)/esp-idf/export.sh
 VENV ?= .venv
 
-.PHONY: server test firmware flash
+.PHONY: server test lint firmware flash
 
 server:
 	cd server && ../$(VENV)/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 test:
 	cd server && ../$(VENV)/bin/python -m pytest -q
+
+lint:
+	cd server && ../$(VENV)/bin/ruff check .
 
 firmware:
 	. $(IDF_EXPORT) && cd firmware && idf.py reconfigure \
