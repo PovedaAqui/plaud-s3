@@ -351,9 +351,13 @@ static void finish_recording(void)
     file_finish();
     mic_close();
     s_state = REC_IDLE;
+    /* Drop gestures that arrived while the hold was still being released or the
+       file was uploading; a stop must not roll straight into a new recording. */
+    s_action = ACT_NONE;
 
     if (ws_connected()) {
         upload_pending_once();
+        s_action = ACT_NONE; /* taps during the upload should not start a take */
     } else {
         ui_set_state(UI_READY);
         ui_set_pending(storage_pending());

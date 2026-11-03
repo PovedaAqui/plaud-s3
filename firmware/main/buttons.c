@@ -103,6 +103,7 @@ static void buttons_task(void *arg)
     int stable = 0;
     TickType_t pressed_at = 0;
     TickType_t next_axp = 0;
+    TickType_t last_long = 0;
 
     for (;;) {
         bool low = gpio_get_level(KEY1_GPIO) == 0;
@@ -114,8 +115,16 @@ static void buttons_task(void *arg)
             if (pressed) {
                 pressed_at = xTaskGetTickCount();
             } else {
-                TickType_t held = xTaskGetTickCount() - pressed_at;
-                emit(BUTTON_KEY1, held > pdMS_TO_TICKS(KEY1_LONG_PRESS_MS));
+                TickType_t now = xTaskGetTickCount();
+                TickType_t held = now - pressed_at;
+                if (held > pdMS_TO_TICKS(KEY1_LONG_PRESS_MS)) {
+                    last_long = now;
+                    emit(BUTTON_KEY1, true);
+                } else if (last_long == 0 || now - last_long > pdMS_TO_TICKS(500)) {
+                    /* Swallow the short press a bouncing release can produce
+                       right after a hold, which would otherwise restart a take. */
+                    emit(BUTTON_KEY1, false);
+                }
             }
         }
 

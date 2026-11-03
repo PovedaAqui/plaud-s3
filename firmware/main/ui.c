@@ -16,14 +16,21 @@ static lv_obj_t *s_hint;
 static void (*s_toggle_cb)(void);
 static void (*s_stop_cb)(void);
 static ui_state_t s_state;
-static uint32_t s_last_long;
+static bool s_suppress_click;
+
+static void on_avatar_pressed(lv_event_t *event)
+{
+    (void)event;
+    s_suppress_click = false; /* a new gesture, not the tail of a hold */
+}
 
 static void on_avatar(lv_event_t *event)
 {
     (void)event;
-    /* A long press already stopped the recording; swallow the click that the
-       button widget may still emit on release. */
-    if (s_last_long && lv_tick_elaps(s_last_long) < 400) {
+    /* LVGL still emits CLICKED on release after LONG_PRESSED. Swallow exactly
+       that click, regardless of how long the hold lasted. */
+    if (s_suppress_click) {
+        s_suppress_click = false;
         return;
     }
     ESP_LOGI(TAG, "tap");
@@ -35,7 +42,7 @@ static void on_avatar(lv_event_t *event)
 static void on_avatar_long(lv_event_t *event)
 {
     (void)event;
-    s_last_long = lv_tick_get();
+    s_suppress_click = true;
     ESP_LOGI(TAG, "hold");
     if (s_stop_cb) {
         s_stop_cb();
@@ -66,6 +73,7 @@ void ui_init(void)
     s_avatar = lv_image_create(screen);
     lv_image_set_src(s_avatar, &avatar_connecting);
     lv_obj_add_flag(s_avatar, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(s_avatar, on_avatar_pressed, LV_EVENT_PRESSED, NULL);
     lv_obj_add_event_cb(s_avatar, on_avatar, LV_EVENT_CLICKED, NULL);
     lv_obj_add_event_cb(s_avatar, on_avatar_long, LV_EVENT_LONG_PRESSED, NULL);
     lv_obj_align(s_avatar, LV_ALIGN_CENTER, 0, -15);
