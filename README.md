@@ -105,7 +105,7 @@ firmware/
   main/ui.c          LVGL screen: DiceBear avatar, timer, hint, long-press stop
   main/buttons.c     GPIO0 polling + AXP2101 PWRON interrupt-status polling
   main/storage.c     FAT mount (internal + optional SD), pending queue, next path
-  main/avatars.c     baked 180×180 RGB565 avatars (generated)
+  main/avatars.c     baked 240×240 RGB565 avatars (generated)
   assets/avatars/    source PNGs from DiceBear
 server/
   app/main.py        /ws/audio, /health, /recordings

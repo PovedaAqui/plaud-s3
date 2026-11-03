@@ -17,7 +17,7 @@ from urllib.parse import urlencode
 
 from PIL import Image
 
-SIZE = 180
+SIZE = 240
 # One mascot (gaze) across all states: the body colour and eyes carry the mood.
 STATES = {
     "connecting": {
