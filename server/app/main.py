@@ -135,6 +135,13 @@ async def audio_ws(ws: WebSocket) -> None:
                     _active[ws] = state
                     log.info("recording %s started from %s", recording_id, state["device"])
                     await ws.send_json({"type": "started", "id": recording_id})
+                elif kind in ("pause", "resume"):
+                    if not state:
+                        await ws.send_json({"type": "error", "error": "not recording"})
+                        continue
+                    state["paused"] = kind == "pause"
+                    log.info("recording %s %sd", state["id"], kind)
+                    await ws.send_json({"type": "paused" if state["paused"] else "resumed"})
                 elif kind == "stop":
                     if not state:
                         await ws.send_json({"type": "error", "error": "not recording"})
@@ -146,7 +153,7 @@ async def audio_ws(ws: WebSocket) -> None:
                     await ws.send_json({"type": "pong"})
                 continue
 
-            if message.get("bytes") is not None and state:
+            if message.get("bytes") is not None and state and not state.get("paused"):
                 state["writer"].write(message["bytes"])
     except WebSocketDisconnect:
         pass

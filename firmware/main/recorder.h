@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -12,6 +14,8 @@ void recorder_selftest(void);
 
 /* Called from the UI task: toggles between idle and recording. */
 void recorder_toggle(void);
+void recorder_stop(void);
+bool recorder_active(void);
 
 #ifdef __cplusplus
 }

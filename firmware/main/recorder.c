@@ -27,7 +27,8 @@ static const char *TAG = "recorder";
 #define WS_STARTED BIT1
 #define WS_DONE BIT2
 
-typedef enum { REC_IDLE, REC_ARMING, REC_RECORDING, REC_STOPPING } rec_state_t;
+typedef enum { REC_IDLE, REC_ARMING, REC_RECORDING, REC_PAUSED, REC_STOPPING } rec_state_t;
+typedef enum { ACT_NONE, ACT_TOGGLE, ACT_STOP } rec_action_t;
 
 static esp_websocket_client_handle_t s_ws;
 static EventGroupHandle_t s_ws_bits;
@@ -35,7 +36,7 @@ static esp_codec_dev_handle_t s_mic;
 static esp_codec_dev_handle_t s_spk;
 static bool s_spk_open;
 static volatile rec_state_t s_state = REC_IDLE;
-static volatile bool s_toggle_request;
+static volatile rec_action_t s_action;
 static uint32_t s_dropped;
 
 static void ws_event(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -177,8 +178,13 @@ static void recorder_task(void *arg)
 
     for (;;) {
         if (s_state == REC_IDLE) {
-            if (s_toggle_request) {
-                s_toggle_request = false;
+            if (s_action != ACT_NONE) {
+                rec_action_t action = s_action;
+                s_action = ACT_NONE;
+                if (action != ACT_TOGGLE) {
+                    vTaskDelay(pdMS_TO_TICKS(50));
+                    continue;
+                }
                 ui_set_state(UI_CONNECTING);
                 if (!mic_open()) {
                     ui_set_state(UI_ERROR);
@@ -199,9 +205,17 @@ static void recorder_task(void *arg)
         }
 
         if (s_state == REC_RECORDING) {
-            if (s_toggle_request) { /* stop requested */
-                s_toggle_request = false;
-                s_state = REC_STOPPING;
+            if (s_action != ACT_NONE) {
+                rec_action_t action = s_action;
+                s_action = ACT_NONE;
+                if (action == ACT_STOP) {
+                    s_state = REC_STOPPING;
+                } else {
+                    ws_send_text("{\"type\":\"pause\"}");
+                    mic_close();
+                    ui_set_state(UI_PAUSED);
+                    s_state = REC_PAUSED;
+                }
                 continue;
             }
 
@@ -242,6 +256,25 @@ static void recorder_task(void *arg)
             }
             frames += out_samples;
             ui_set_timer(frames / SAMPLE_RATE);
+            continue;
+        }
+
+        if (s_state == REC_PAUSED) {
+            if (s_action != ACT_NONE) {
+                rec_action_t action = s_action;
+                s_action = ACT_NONE;
+                if (action == ACT_STOP) {
+                    s_state = REC_STOPPING;
+                } else if (mic_open()) {
+                    ws_send_text("{\"type\":\"resume\"}");
+                    ui_set_state(UI_RECORDING);
+                    s_state = REC_RECORDING;
+                } else {
+                    ui_set_state(UI_ERROR);
+                    ui_set_status("mic unavailable");
+                }
+            }
+            vTaskDelay(pdMS_TO_TICKS(20));
             continue;
         }
 
@@ -315,5 +348,17 @@ void recorder_start(void)
 
 void recorder_toggle(void)
 {
-    s_toggle_request = true;
+    s_action = ACT_TOGGLE;
+}
+
+void recorder_stop(void)
+{
+    if (s_state != REC_IDLE) {
+        s_action = ACT_STOP;
+    }
+}
+
+bool recorder_active(void)
+{
+    return s_state != REC_IDLE;
 }

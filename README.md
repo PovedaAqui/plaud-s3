@@ -65,8 +65,10 @@ If no LLM answers, the notes file says so and contains the raw transcript — no
 1. device → text `{"type":"start","device":"plaud-s3-b0:10","rate":16000}`
 2. server → text `{"type":"started","id":"20261103-165239"}`
 3. device → binary frames of 16 kHz mono s16le (6400 bytes = 200 ms is fine)
-4. device → text `{"type":"stop"}`
-5. server closes the WAV, transcribes, writes `audio.wav`, `transcript.{txt,json}`, `notes.md`, `meta.json`, then replies `{"type":"done", ...}`
+4. device → text `{"type":"pause"}` or `{"type":"resume"}` — the server keeps the WAV open
+   and discards binary frames while paused
+5. device → text `{"type":"stop"}`
+6. server closes the WAV, transcribes, writes `audio.wav`, `transcript.{txt,json}`, `notes.md`, `meta.json`, then replies `{"type":"done", ...}`
 
 ## Firmware
 
@@ -102,7 +104,10 @@ py -3 -m esptool --chip esp32s3 -p COM4 -b 921600 write_flash `
 - Boots to a dark screen with a DiceBear avatar for the current state, a timer and a tap hint.
 - Boot pre-connects the WebSocket so a tap starts capture in well under a second.
 - Tap the avatar: opens the ES7210 at 16 kHz stereo, downmixes to mono, streams 100 ms chunks.
-- The avatar and hint change per state; tap again to stop.
+- Tap again: pause (mic closed, timer frozen, audio not appended server-side).
+- Tap a third time: resume into the same WAV. Hold the avatar: stop and save.
+- Key1 mirrors this (tap cycles record/pause/resume, hold stops). Key2 stops when active,
+  otherwise starts; long-press power-off stays with the PMIC.
 - If Wi-Fi or the server is down the screen shows the offline avatar and the mic is closed;
   nothing is buffered on flash yet.
 
@@ -125,7 +130,8 @@ All states use the same `gaze` mascot (10.x); body colour and eye variant carry 
 |---|---|---|---|---|
 | connecting | circle | `dots` | `#9cc8fb` | WAIT |
 | ready | circle | `happy` | `#9bd78d` | TAP TO RECORD |
-| recording | circle | `wide` | `#fbabaf` | TAP TO STOP |
+| recording | circle | `wide` | `#fbabaf` | TAP PAUSE  HOLD STOP |
+| paused | circle | `tall` | `#f2c14e` | TAP RESUME  HOLD STOP |
 | saving | circle | `squint` | `#d8b1fb` | WAIT |
 | offline | circle | `bars` | `#fbb271` | TAP TO RETRY |
 

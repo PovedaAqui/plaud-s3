@@ -35,6 +35,11 @@ STATES = {
         "seed": "plaud-gaze-recording",
         "params": {"shapeVariant": "circle", "eyesVariant": "wide", "bodyColor": "fbabaf"},
     },
+    "paused": {
+        "style": "gaze",
+        "seed": "plaud-gaze-paused",
+        "params": {"shapeVariant": "circle", "eyesVariant": "tall", "bodyColor": "f2c14e"},
+    },
     "saving": {
         "style": "gaze",
         "seed": "plaud-gaze-saving",
@@ -66,7 +71,8 @@ def fetch(style: str, seed: str, params: dict[str, str]) -> Image.Image:
 
 
 def to_rgb565(image: Image.Image) -> bytes:
-    canvas = Image.new("RGBA", image.size, (0, 0, 0, 255))
+    # Match the badge colour so the square corners disappear into the circle.
+    canvas = Image.new("RGBA", image.size, (239, 231, 218, 255))
     flat = Image.alpha_composite(canvas, image).convert("RGB")
     out = bytearray()
     for r, g, b in flat.getdata():

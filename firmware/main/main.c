@@ -18,7 +18,23 @@ static void on_button(button_id_t id, bool long_press)
         return; /* the PMIC owns long-press power-off */
     }
     ESP_LOGI(TAG, "button %s", long_press ? "long" : "short");
-    recorder_toggle();
+
+    if (id == BUTTON_KEY1) {
+        /* Tap cycles record -> pause -> resume; hold stops and saves. */
+        if (long_press) {
+            recorder_stop();
+        } else {
+            recorder_toggle();
+        }
+        return;
+    }
+
+    /* Power key: stop when something is running, otherwise start. */
+    if (recorder_active()) {
+        recorder_stop();
+    } else {
+        recorder_toggle();
+    }
 }
 
 void app_main(void)
@@ -36,6 +52,7 @@ void app_main(void)
     ui_set_state(UI_CONNECTING);
     ui_set_status("joining wi-fi");
     ui_on_toggle(recorder_toggle);
+    ui_on_stop(recorder_stop);
 
     recorder_selftest();
     wifi_start();
@@ -51,10 +68,14 @@ void app_main(void)
 
 #if CONFIG_PLAUD_AUTOTEST_SECONDS > 0
     vTaskDelay(pdMS_TO_TICKS(1500));
-    ESP_LOGI(TAG, "autotest: recording for %d s", CONFIG_PLAUD_AUTOTEST_SECONDS);
-    recorder_toggle();
-    vTaskDelay(pdMS_TO_TICKS(CONFIG_PLAUD_AUTOTEST_SECONDS * 1000));
-    recorder_toggle();
+    ESP_LOGI(TAG, "autotest: record/pause/resume/stop");
+    recorder_toggle();                                            /* start */
+    vTaskDelay(pdMS_TO_TICKS(CONFIG_PLAUD_AUTOTEST_SECONDS * 300));
+    recorder_toggle();                                            /* pause */
+    vTaskDelay(pdMS_TO_TICKS(1200));
+    recorder_toggle();                                            /* resume */
+    vTaskDelay(pdMS_TO_TICKS(CONFIG_PLAUD_AUTOTEST_SECONDS * 300));
+    recorder_stop();                                              /* stop */
 #endif
 
     ESP_LOGI(TAG, "ready");

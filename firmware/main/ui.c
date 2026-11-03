@@ -14,14 +14,31 @@ static lv_obj_t *s_timer;
 static lv_obj_t *s_avatar;
 static lv_obj_t *s_hint;
 static void (*s_toggle_cb)(void);
+static void (*s_stop_cb)(void);
 static ui_state_t s_state;
+static uint32_t s_last_long;
 
 static void on_avatar(lv_event_t *event)
 {
     (void)event;
+    /* A long press already stopped the recording; swallow the click that the
+       button widget may still emit on release. */
+    if (s_last_long && lv_tick_elaps(s_last_long) < 400) {
+        return;
+    }
     ESP_LOGI(TAG, "tap");
     if (s_toggle_cb) {
         s_toggle_cb();
+    }
+}
+
+static void on_avatar_long(lv_event_t *event)
+{
+    (void)event;
+    s_last_long = lv_tick_get();
+    ESP_LOGI(TAG, "hold");
+    if (s_stop_cb) {
+        s_stop_cb();
     }
 }
 
@@ -54,6 +71,7 @@ void ui_init(void)
     lv_obj_set_style_pad_all(badge, 0, 0);
     lv_obj_add_flag(badge, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(badge, on_avatar, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(badge, on_avatar_long, LV_EVENT_LONG_PRESSED, NULL);
     lv_obj_align(badge, LV_ALIGN_CENTER, 0, -15);
 
     s_avatar = lv_image_create(badge);
@@ -94,7 +112,12 @@ void ui_set_state(ui_state_t state)
     case UI_RECORDING:
         lv_image_set_src(s_avatar, &avatar_recording);
         lv_label_set_text(s_status, "recording");
-        lv_label_set_text(s_hint, "TAP TO STOP");
+        lv_label_set_text(s_hint, "TAP PAUSE  HOLD STOP");
+        break;
+    case UI_PAUSED:
+        lv_image_set_src(s_avatar, &avatar_paused);
+        lv_label_set_text(s_status, "paused");
+        lv_label_set_text(s_hint, "TAP RESUME  HOLD STOP");
         break;
     case UI_SAVING:
         lv_image_set_src(s_avatar, &avatar_saving);
@@ -132,4 +155,9 @@ void ui_set_timer(uint32_t seconds)
 void ui_on_toggle(void (*callback)(void))
 {
     s_toggle_cb = callback;
+}
+
+void ui_on_stop(void (*callback)(void))
+{
+    s_stop_cb = callback;
 }

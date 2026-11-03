@@ -57,6 +57,35 @@ def test_ws_ingest_writes_audio_and_finalises(data_dir, monkeypatch):
     assert calls["device"] == "test-device"
 
 
+def test_pause_drops_audio_between_resume(data_dir, monkeypatch):
+    calls = {}
+
+    def fake_process(**kwargs):
+        calls.update(kwargs)
+        return {"notes": "x"}
+
+    monkeypatch.setattr(server, "process_recording", fake_process)
+
+    from fastapi.testclient import TestClient
+
+    client = TestClient(server.app)
+    with client.websocket_connect("/ws/audio") as ws:
+        ws.send_json({"type": "start", "device": "test"})
+        assert ws.receive_json()["type"] == "started"
+        ws.send_bytes(b"\x00\x00" * 16000)          # 1 s recorded
+        ws.send_json({"type": "pause"})
+        assert ws.receive_json()["type"] == "paused"
+        ws.send_bytes(b"\x01\x01" * 16000)          # must be discarded
+        ws.send_json({"type": "resume"})
+        assert ws.receive_json()["type"] == "resumed"
+        ws.send_bytes(b"\x00\x00" * 16000)          # 1 s recorded
+        ws.send_json({"type": "stop"})
+        assert ws.receive_json()["type"] == "done"
+
+    with wave.open(str(calls["wav_path"])) as f:
+        assert f.getnframes() == 32000  # 2 s, pause excluded
+
+
 def test_notes_are_honest_without_llm(tmp_path, monkeypatch):
     settings = Settings(llm_base_url="http://127.0.0.1:9/v1", llm_timeout=0.2)
     title, md = build_notes(
