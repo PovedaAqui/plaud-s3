@@ -262,6 +262,30 @@ speech clip streamed through the same protocol transcribes correctly and lands i
 The offline path was exercised with the server stopped: the board recorded to `/storage`, the
 pending file survived a reboot, and it uploaded itself once the server returned.
 
+### Testing summaries with MiniCPM-V 4.7 1B
+
+The note path is smoke-tested against **MiniCPM-V 4.7 1B** (`Q4_K_M`, 672 MB). It is a vision
+model, but text-only prompts work without the projector, and it is fast enough on a laptop GPU.
+
+```bash
+# serve it with llama.cpp (CUDA build shown; CPU works too)
+llama-server -m MiniCPM-V-4_7-1B-Q4_K_M.gguf --port 8080 -c 8192 -ngl 99 \
+  -a minicpm-v-4.7-1b
+
+# exercise summary + action items
+PLAUD_LLM_BASE_URL=http://127.0.0.1:8080/v1 PLAUD_LLM_MODEL=minicpm-v-4.7-1b \
+  python tools/check_summary.py
+```
+
+Point the ingest server at the same URL to get summaries on real recordings. Note generation
+makes **two small calls** — notes first, then action items — because a 1B model follows
+single-purpose prompts far more reliably, and a malformed action-items answer cannot cost the
+summary. On a five-person launch transcript it returns three real commitments and no fabricated
+items for a speech with none.
+
+A 1B model is a plumbing test, not a quality bar: summaries are terse and can drift on long
+recordings. Use a larger model for notes you intend to keep.
+
 The two switches and the touch panel still need a human.
 
 ## Troubleshooting

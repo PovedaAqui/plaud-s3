@@ -113,14 +113,8 @@ def diarize(wav_path: Path, segments: list[Segment], settings: Settings) -> list
     return segments
 
 
-def _llm_summary(transcript: str, settings: Settings) -> dict | None:
-    """Ask an OpenAI-compatible endpoint for structured notes. Returns None on failure."""
-    prompt = (
-        "You turn meeting transcripts into notes. Reply with JSON only, using keys "
-        '"title" (max 8 words), "summary" (3-6 sentences), "action_items" (array of strings, '
-        'empty if none), "topics" (array of 3-8 short strings). Never invent names, numbers '
-        "or commitments that are not in the transcript.\n\nTranscript:\n" + transcript[:24000]
-    )
+def _llm_chat(prompt: str, settings: Settings) -> dict | None:
+    """POST a single prompt to an OpenAI-compatible endpoint and parse JSON."""
     body = json.dumps(
         {
             "model": settings.llm_model,
@@ -142,7 +136,7 @@ def _llm_summary(transcript: str, settings: Settings) -> dict | None:
             payload = json.loads(response.read())
         content = payload["choices"][0]["message"]["content"].strip()
     except (urllib.error.URLError, KeyError, IndexError, json.JSONDecodeError, TimeoutError) as exc:
-        log.warning("LLM summary unavailable: %s", exc)
+        log.warning("LLM request failed: %s", exc)
         return None
 
     match = re.search(r"\{.*\}", content, re.DOTALL)
@@ -152,9 +146,39 @@ def _llm_summary(transcript: str, settings: Settings) -> dict | None:
         data = json.loads(match.group(0))
     except json.JSONDecodeError:
         return None
-    if not isinstance(data, dict) or not data.get("summary"):
+    return data if isinstance(data, dict) else None
+
+
+def _llm_summary(transcript: str, settings: Settings) -> dict | None:
+    """Two small calls instead of one large one: a 1B model follows short,
+    single-purpose prompts far more reliably, and a malformed action-items
+    answer cannot cost us the summary."""
+    excerpt = transcript[:24000]
+    notes = _llm_chat(
+        "Summarise this meeting transcript. Reply with JSON only, keys: "
+        '"title" (3-8 words describing the topic, never a quote), '
+        '"summary" (3-6 sentences using only facts from the transcript), '
+        '"topics" (3-8 short strings). Do not invent names, numbers or commitments.'
+        "\n\nTranscript:\n" + excerpt,
+        settings,
+    )
+    if not notes or not notes.get("summary"):
         return None
-    return data
+
+    actions = _llm_chat(
+        "From this transcript, list tasks a participant explicitly committed to "
+        '(phrases like "I will" / "I\'ll" or a direct assignment). '
+        'Reply with JSON only: {"action_items": ["..."]}. '
+        "Use an empty array when there is no such commitment. "
+        "Suggestions, questions and decisions are not actions."
+        "\n\nTranscript:\n" + excerpt,
+        settings,
+    )
+    if actions and isinstance(actions.get("action_items"), list):
+        notes["action_items"] = [str(x) for x in actions["action_items"] if str(x).strip()]
+    else:
+        notes.setdefault("action_items", [])
+    return notes
 
 
 def _slug(text: str) -> str:
