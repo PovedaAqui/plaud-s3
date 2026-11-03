@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "bsp/esp-bsp.h"
+#include "buttons.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -10,6 +11,15 @@
 #include "wifi.h"
 
 static const char *TAG = "plaud-s3";
+
+static void on_button(button_id_t id, bool long_press)
+{
+    if (id == BUTTON_POWER && long_press) {
+        return; /* the PMIC owns long-press power-off */
+    }
+    ESP_LOGI(TAG, "button %s", long_press ? "long" : "short");
+    recorder_toggle();
+}
 
 void app_main(void)
 {
@@ -37,6 +47,7 @@ void app_main(void)
 
     recorder_init();
     recorder_start();
+    buttons_start(on_button);
 
 #if CONFIG_PLAUD_AUTOTEST_SECONDS > 0
     vTaskDelay(pdMS_TO_TICKS(1500));

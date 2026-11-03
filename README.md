@@ -106,6 +106,19 @@ py -3 -m esptool --chip esp32s3 -p COM4 -b 921600 write_flash `
 - If Wi-Fi or the server is down the screen shows the offline avatar and the mic is closed;
   nothing is buffered on flash yet.
 
+### Physical buttons
+
+Both side buttons act as record toggles; the power key keeps its PMIC behaviour.
+
+| Button | Wiring | Short press | Long press |
+|---|---|---|---|
+| Key1 (BOOT) | GPIO0 → GND, 10K pull-up, 100nF | start/stop | start/stop |
+| Key2 (PWR) | AXP2101 PWRON → GND via 510R | start/stop | left to the PMIC (power off) |
+
+Key1 is polled every 20 ms with a 3-sample debounce. Key2 is not a GPIO at all: the
+AXP2101 latches `PKEY_SHORT`/`PKEY_LONG` in `INTSTS2`, which the firmware polls over I2C
+and clears with write-1-to-clear semantics.
+
 | State | Avatar (DiceBear 10.x) | Hint |
 |---|---|---|
 | connecting | `rings` | WAIT |
