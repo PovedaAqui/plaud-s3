@@ -1,0 +1,39 @@
+menu "Plaud-S3 recorder"
+
+    config PLAUD_WIFI_SSID
+        string "Wi-Fi SSID"
+        default ""
+        help
+            Network the recorder joins at boot. 2.4 GHz only (the ESP32-S3 has no 5 GHz radio).
+
+    config PLAUD_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default ""
+
+    config PLAUD_SERVER_URL
+        string "Ingest WebSocket URL"
+        default "ws://192.168.1.35:8000/ws/audio"
+        help
+            Host running server/app/main.py, for example ws://192.168.1.50:8000/ws/audio
+
+    config PLAUD_DEVICE_NAME
+        string "Device name reported to the server"
+        default "plaud-s3"
+
+    config PLAUD_AUTOTEST_SECONDS
+        int "Record automatically for N seconds after boot (0 = off)"
+        range 0 300
+        default 0
+        help
+            Smoke-test hook: starts a recording as soon as Wi-Fi is up and stops
+            after N seconds. Leave at 0 for normal use.
+
+    config PLAUD_CHANNELS
+        int "Microphone channels read from the codec"
+        range 1 2
+        default 2
+        help
+            The board has two digital microphones behind the ES7210 ADC. Stereo is
+            downmixed to mono on the device before streaming.
+
+endmenu

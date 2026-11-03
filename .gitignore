@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+backups/
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/managed_components/
+firmware/dependencies.lock
+firmware/sdkconfig.local
+scripts/wifi.env
+.pytest_cache/
+*.log
