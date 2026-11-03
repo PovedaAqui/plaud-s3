@@ -58,6 +58,24 @@ flowchart LR
 The device is a thin capture client on purpose: no model, no transcript, no cloud state. It only
 owns the audio it has not managed to upload yet.
 
+### Adding a microSD card
+
+The storage layer is volume-agnostic: `storage_init()` mounts the internal FAT partition, then
+tries SDMMC 1-bit at `/sdcard` when enabled. If a card answers, new recordings go there; files
+already pending on the internal partition are still uploaded first.
+
+```
+menuconfig → Plaud-S3 recorder
+  [*] Mount a microSD card when one is wired
+      microSD CLK / CMD / D0 GPIO
+      microSD clock (kHz)
+```
+
+It is off by default on purpose: the board has no card slot, and driving guessed pins could
+disturb the display or I2C bus. Set the pins to match the wiring before enabling. There is no
+hot-swap detection — a card is picked up at boot, and removing it mid-recording stops the take
+with `storage full`.
+
 ## Hardware
 
 | Property | Value |
@@ -68,7 +86,7 @@ owns the audio it has not managed to upload yet.
 | Audio | dual digital mics via ES7210 ADC, ES8311 codec, speaker |
 | Sensors / power | QMI8658 IMU, AXP2101 PMIC |
 | Buttons | Key1 → GPIO0 (BOOT); Key2 → AXP2101 `PWRON` (not a GPIO) |
-| Storage | 16 MB FAT partition (`/storage`, wear-levelled), ~8 min at 16 kHz mono |
+| Storage | 16 MB FAT partition (`/storage`, wear-levelled), ~8 min at 16 kHz mono; optional microSD |
 | USB | native USB-Serial/JTAG (`303a:1001`) |
 
 A 16 MB flash backup covering the bootloader, partition table, `nvs` and factory app was taken before the first flash.
@@ -252,7 +270,9 @@ The two switches and the touch panel still need a human.
 
 Deliberate for v0:
 
-- **~8 minutes of local audio.** 16 MB FAT at 32 KB/s; a full partition stops the recording with `storage full`.
+- **~8 minutes of local audio** without a card. 16 MB FAT at 32 KB/s; a full partition stops the
+  recording with `storage full`.
+- **microSD is boot-time only.** No hot-swap, no migration of pending files between volumes.
 - **Retries are not deduplicated.** If the socket dies mid-upload, the next attempt starts a new
   server session; the local file is only deleted after the server acknowledges `done`.
 - **16 kHz mono.** Enough for ASR, not a hi-fi recorder.

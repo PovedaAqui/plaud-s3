@@ -28,6 +28,36 @@ menu "Plaud-S3 recorder"
             Smoke-test hook: starts a recording as soon as Wi-Fi is up and stops
             after N seconds. Leave at 0 for normal use.
 
+    config PLAUD_SD_ENABLE
+        bool "Mount a microSD card when one is wired"
+        default n
+        help
+            Tries SDMMC 1-bit at boot and, if a card answers, records new audio
+            there instead of the internal 16 MB partition. Pending files on the
+            internal partition are still uploaded. Leave off until the card
+            slot pins below match real hardware: driving the wrong pins can
+            disturb the display and I2C bus.
+
+    config PLAUD_SD_CLK
+        int "microSD CLK GPIO"
+        depends on PLAUD_SD_ENABLE
+        default 39
+
+    config PLAUD_SD_CMD
+        int "microSD CMD GPIO"
+        depends on PLAUD_SD_ENABLE
+        default 38
+
+    config PLAUD_SD_D0
+        int "microSD D0 GPIO"
+        depends on PLAUD_SD_ENABLE
+        default 40
+
+    config PLAUD_SD_FREQ_KHZ
+        int "microSD clock (kHz)"
+        depends on PLAUD_SD_ENABLE
+        default 20000
+
     config PLAUD_CHANNELS
         int "Microphone channels read from the codec"
         range 1 2
