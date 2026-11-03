@@ -32,5 +32,6 @@ cd "$root"
 rm -f sdkconfig
 export SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.local"
 idf.py reconfigure
+"$here/patch_bsp_display.sh"
 idf.py build
 echo "built with SSID '$WIFI_SSID' -> $SERVER_URL"

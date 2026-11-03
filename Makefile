@@ -7,7 +7,8 @@ test:
 	cd server && ../.venv/bin/python -m pytest -q
 
 firmware:
-	. $(HOME)/esp-idf/export.sh && cd firmware && idf.py build && idf.py merge-bin -o build/merged.bin
+	. $(HOME)/esp-idf/export.sh && cd firmware && idf.py reconfigure \
+	  && ../scripts/patch_bsp_display.sh && idf.py build
 
 # The ESP32-S3 is on Windows COM4; flashing goes through the Windows esptool.
 flash:

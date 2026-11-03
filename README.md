@@ -76,7 +76,7 @@ can be reproduced without editing generated config:
 ```bash
 cp scripts/wifi.env.example scripts/wifi.env
 $EDITOR scripts/wifi.env        # SSID, password, ws:// URL of the server
-./scripts/configure_wifi.sh     # regenerates sdkconfig and builds
+./scripts/configure_wifi.sh     # regenerates sdkconfig, patches the BSP, builds
 ```
 
 The USB device is currently attached to WSL as `/dev/ttyACM0`:
