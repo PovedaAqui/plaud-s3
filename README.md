@@ -12,10 +12,10 @@ No vendor cloud, no subscription minutes, no phone app in the middle.
 ![Hardware](https://img.shields.io/badge/hardware-ESP32--S3-informational)
 ![Tests](https://img.shields.io/badge/tests-15%20passing-brightgreen)
 
-![The recorder in hand](docs/images/device-ready.jpg)
+![Recording on the device](docs/images/device-recording.jpg)
 
-*Prototype in hand — this photo is from an earlier UI build; the current screen uses the
-avatar states below.*
+*Recording in hand: pink `gaze` avatar, elapsed time, tap-to-pause hint. The paused state is
+further down.*
 
 ---
 
@@ -85,6 +85,8 @@ with `storage full`.
 | Display | 1.75″ 466×466 QSPI AMOLED (CO5300), CST9217 touch |
 | Audio | dual digital mics via ES7210 ADC, ES8311 codec, speaker |
 | Sensors / power | QMI8658 IMU, AXP2101 PMIC |
+| Battery | 500 mAh LiPo (702530, 3.7 V, 1.85 Wh) on the retail unit |
+| Board revision | Rev1.1 (silkscreen) |
 | Buttons | Key1 → GPIO0 (BOOT); Key2 → AXP2101 `PWRON` (not a GPIO) |
 | Storage | 16 MB FAT partition (`/storage`, wear-levelled), ~8 min at 16 kHz mono; optional microSD |
 | USB | native USB-Serial/JTAG (`303a:1001`) |
@@ -181,6 +183,10 @@ All states share one DiceBear `gaze` mascot (10.x); body colour and eye variant 
 DiceBear exposes variants as `<component>Variant` query parameters (`shapeVariant`,
 `eyesVariant`, …) and colours as `bodyColor` / `inkColor` / `glintColor`. The generator pins
 them, so a style refresh cannot silently change the look.
+
+![Paused on the device](docs/images/device-paused.jpg)
+
+*Paused: amber avatar, `tall` eyes, timer frozen at the recorded length.*
 
 ## Controls
 
