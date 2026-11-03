@@ -401,3 +401,7 @@ def test_build_notes_accepts_action_items_as_string(monkeypatch):
         settings=Settings(),
     )
     assert "- Ship the build" in md and "- Email marketing" in md
+
+
+def test_llm_chat_without_endpoint_returns_none():
+    assert _llm_chat("prompt", Settings(llm_base_url="")) is None

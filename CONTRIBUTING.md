@@ -43,6 +43,10 @@ Coverage while developing:
 cd server && PYTHONPATH=. ../.venv/bin/python -m pytest -q --cov=app --cov-report=term-missing
 ```
 
+`make e2e` runs `server/tools/e2e_check.py`: it boots its own server on port 8099, streams a
+short public-domain clip and checks the transcript, WAV and fallback note. Use it after touching
+the ingest protocol or the pipeline.
+
 Tests must not reach the network or a real model: monkeypatch `_llm_chat`, `urllib.request.urlopen`
 or `_get_whisper` as the existing tests do. A test that needs an LLM endpoint belongs in
 `tools/check_summary.py`, not in `pytest`.

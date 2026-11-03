@@ -3,7 +3,7 @@ PORT ?= /dev/ttyACM0
 IDF_EXPORT ?= $(HOME)/esp-idf/export.sh
 VENV ?= .venv
 
-.PHONY: server test lint coverage firmware flash
+.PHONY: server test lint coverage e2e firmware flash
 
 server:
 	cd server && ../$(VENV)/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -16,6 +16,9 @@ lint:
 
 coverage:
 	cd server && PYTHONPATH=. ../$(VENV)/bin/python -m pytest -q --cov=app --cov-report=term-missing
+
+e2e:
+	cd server && ../$(VENV)/bin/python tools/e2e_check.py
 
 firmware:
 	. $(IDF_EXPORT) && cd firmware && idf.py reconfigure \

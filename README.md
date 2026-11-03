@@ -115,7 +115,7 @@ server/
   app/pipeline.py    ASR, optional diarization, LLM notes, vault export
   app/wavio.py       streaming WAV writer
   tools/send_wav.py  replay a WAV through the real protocol
-  tests/             53 tests, ~90% coverage
+  tests/             55 tests, ~90% coverage
 scripts/
   configure_wifi.sh  credentials → sdkconfig.local → BSP patch → build
   gen_avatars.py     fetch DiceBear variants and write the .bin blobs
@@ -261,12 +261,19 @@ channels, and `PLAUD_AUTOTEST_SECONDS` (0 = off).
 ## Testing
 
 ```bash
-make test        # pytest: 53 tests
+make test        # pytest: 55 tests
 make lint        # ruff
 cd server && PYTHONPATH=. ../.venv/bin/python -m pytest -q --cov=app --cov-report=term-missing
 ```
 
-Current suite: **53 tests, 90% coverage** (config 100%, wavio 97%, pipeline 91%, ingest 85%).
+Current suite: **55 tests, 90% coverage** (config 100%, wavio 97%, pipeline 91%, ingest 85%).
+
+A black-box end-to-end check starts its own server, downloads an 11 s speech clip, streams it
+through the WebSocket protocol and asserts the transcript, WAV and fallback note:
+
+```bash
+make e2e          # or: cd server && python tools/e2e_check.py
+```
 
 Covered: WAV header integrity, ingest, pause/resume (frames dropped while paused),
 stop-while-paused, abrupt disconnect finalisation, malformed JSON, unsupported sample rate,
@@ -274,25 +281,26 @@ concurrent sessions and unique ids, pipeline crash isolation, diarization fallba
 failure paths, vault publishing failures, honest no-LLM notes and the HTTP surface.
 
 On device, `CONFIG_PLAUD_AUTOTEST_SECONDS=N` runs record → pause → resume → stop after boot, so
-the whole radio/audio path can be exercised from serial without touching the panel. An 11 s
-speech clip streamed through the same protocol transcribes correctly and lands in the vault.
+the whole radio/audio path can be exercised from serial without touching the panel.
+
+Verified end to end with real speech (not replay): a 6.9 s Spanish take was stored locally,
+uploaded, transcribed as *“Hola prueba, 1, 2, 3 … hora dos y cincuenta y dos”*, summarised by
+MiniCPM5-1B and published to the vault — with the summary caveat above.
 
 The offline path was exercised with the server stopped: the board recorded to `/storage`, the
 pending file survived a reboot, and it uploaded itself once the server returned.
 
 ### Testing summaries with MiniCPM5-1B
 
-The note path is smoke-tested against **openbmb/MiniCPM5-1B** (`Q8_0`, 1.1 GB). There is no
-official GGUF, so convert it once with a current llama.cpp:
+The note path is smoke-tested against **openbmb/MiniCPM5-1B**. Official GGUFs are published at
+[`openbmb/MiniCPM5-1B-GGUF`](https://huggingface.co/openbmb/MiniCPM5-1B-GGUF) (`F16`, `Q4_K_M`,
+`Q8_0`); the `Q8_0` file is 1.1 GB and carries `tokenizer.ggml.pre = llama-bpe`, so a stock
+llama.cpp build loads it. (Converting the safetensors yourself with a recent converter stamps
+`minicpm5` instead, which older runtimes reject with “unknown pre-tokenizer type”.)
 
 ```bash
-# convert + quantise (the converter and runtime must know tokenizer.ggml.pre=minicpm5;
-# builds before late 2026 fail with "unknown pre-tokenizer type")
-python convert_hf_to_gguf.py openbmb/MiniCPM5-1B --outfile MiniCPM5-1B-f16.gguf --outtype f16
-llama-quantize MiniCPM5-1B-f16.gguf MiniCPM5-1B-Q8_0.gguf Q8_0
-
-llama-server -m MiniCPM5-1B-Q8_0.gguf --port 8080 -c 8192 -ngl 99 \
-  -a minicpm5-1b --jinja
+huggingface-cli download openbmb/MiniCPM5-1B-GGUF MiniCPM5-1B-Q8_0.gguf --local-dir .
+llama-server -m MiniCPM5-1B-Q8_0.gguf --port 8080 -c 8192 -ngl 99 -a minicpm5-1b --jinja
 ```
 
 MiniCPM5 is a hybrid reasoning model: with thinking on, a 400-token budget is consumed before the
@@ -307,16 +315,14 @@ export PLAUD_LLM_EXTRA_BODY='{"chat_template_kwargs":{"enable_thinking":false},"
 python tools/check_summary.py
 ```
 
-With those settings a five-person launch transcript summarises in **1.1 s** with five
-commitments, and the JFK speech returns no actions. Note generation makes **two small calls** —
-notes first, then action items — because a 1B model follows single-purpose prompts far more
-reliably, and a malformed action-items answer cannot cost the summary.
+With those settings a five-person launch transcript summarises in **~0.8 s** with five
+commitments, and a rhetorical speech returns no actions. Note generation makes **two small
+calls** — notes first, then action items — because a 1B model follows single-purpose prompts far
+more reliably, and a malformed action-items answer cannot cost the summary.
 
-A 1B model is a plumbing test, not a quality bar: on a rhetorical one-liner it still invents an
-action item and repeats itself without the penalties above. Use a larger model (or accept
-editing) for notes you intend to keep.
-
-The two switches and the touch panel still need a human.
+A 1B model is a plumbing test, not a quality bar. On a live Spanish voice test the transcript was
+exact, but the summary invented a meeting time and two actions that were never said. Use a larger
+model (or edit the note) for anything you keep.
 
 ## Troubleshooting
 

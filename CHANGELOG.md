@@ -2,6 +2,16 @@
 
 All notable changes to this project. Dates are ISO-8601.
 
+## [0.2.3] — 2026-11-04
+
+### Fixed
+- An empty or malformed `PLAUD_LLM_BASE_URL` aborted the whole recording pipeline before the
+  transcript was written; it now degrades to the "no summary" note like any unreachable model.
+
+### Added
+- `tools/e2e_check.py` / `make e2e`: black-box check that starts a server, streams speech and
+  asserts the transcript, WAV and fallback note.
+
 ## [0.2.2] — 2026-11-04
 
 ### Fixed

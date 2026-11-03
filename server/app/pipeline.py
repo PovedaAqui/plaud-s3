@@ -115,6 +115,8 @@ def diarize(wav_path: Path, segments: list[Segment], settings: Settings) -> list
 
 def _llm_chat(prompt: str, settings: Settings) -> dict | None:
     """POST a single prompt to an OpenAI-compatible endpoint and parse JSON."""
+    if not settings.llm_base_url.strip():
+        return None
     payload = {
         "model": settings.llm_model,
         "messages": [{"role": "user", "content": prompt}],
@@ -137,7 +139,15 @@ def _llm_chat(prompt: str, settings: Settings) -> dict | None:
         with urllib.request.urlopen(request, timeout=settings.llm_timeout) as response:
             payload = json.loads(response.read())
         content = payload["choices"][0]["message"]["content"].strip()
-    except (urllib.error.URLError, KeyError, IndexError, json.JSONDecodeError, TimeoutError) as exc:
+    except (
+        urllib.error.URLError,
+        OSError,
+        ValueError,
+        KeyError,
+        IndexError,
+        json.JSONDecodeError,
+        TimeoutError,
+    ) as exc:
         log.warning("LLM request failed: %s", exc)
         return None
 
