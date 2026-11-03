@@ -119,13 +119,19 @@ Key1 is polled every 20 ms with a 3-sample debounce. Key2 is not a GPIO at all: 
 AXP2101 latches `PKEY_SHORT`/`PKEY_LONG` in `INTSTS2`, which the firmware polls over I2C
 and clears with write-1-to-clear semantics.
 
-| State | Avatar (DiceBear 10.x) | Hint |
-|---|---|---|
-| connecting | `rings` | WAIT |
-| ready | `micah` | TAP TO RECORD |
-| recording | `gaze` | TAP TO STOP |
-| saving | `bottts` | WAIT |
-| offline | `fun-emoji` | TAP TO RETRY |
+All states use the same `gaze` mascot (10.x); body colour and eye variant carry the mood.
+
+| State | Shape | Eyes | Body | Hint |
+|---|---|---|---|---|
+| connecting | circle | `dots` | `#9cc8fb` | WAIT |
+| ready | circle | `happy` | `#9bd78d` | TAP TO RECORD |
+| recording | circle | `wide` | `#fbabaf` | TAP TO STOP |
+| saving | circle | `squint` | `#d8b1fb` | WAIT |
+| offline | circle | `bars` | `#fbb271` | TAP TO RETRY |
+
+DiceBear exposes variants as `<component>Variant` query parameters (`shapeVariant`,
+`eyesVariant`, `spacingVariant`, `animationVariant`) and colours as `bodyColor`,
+`inkColor`, `glintColor`; the generator pins them per state.
 
 Avatars are fetched once and baked into `firmware/main/avatars.c` as LVGL RGB565 images
 (180×180, composited onto black). Regenerate after changing seeds or styles:

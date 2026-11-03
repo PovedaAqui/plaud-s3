@@ -13,17 +13,38 @@ from __future__ import annotations
 
 import pathlib
 import urllib.request
+from urllib.parse import urlencode
 
 from PIL import Image
 
 SIZE = 180
+# One mascot (gaze) across all states: the body colour and eyes carry the mood.
 STATES = {
-    # name        dicebear style   seed
-    "connecting": ("rings", "plaud-connecting-2"),
-    "ready": ("micah", "plaud-micah-d"),
-    "recording": ("gaze", "plaud-recording-3"),
-    "saving": ("bottts", "plaud-saving-5"),
-    "error": ("fun-emoji", "plaud-upset"),
+    "connecting": {
+        "style": "gaze",
+        "seed": "plaud-gaze-connecting",
+        "params": {"shapeVariant": "circle", "eyesVariant": "dots", "bodyColor": "9cc8fb"},
+    },
+    "ready": {
+        "style": "gaze",
+        "seed": "plaud-gaze-ready",
+        "params": {"shapeVariant": "circle", "eyesVariant": "happy", "bodyColor": "9bd78d"},
+    },
+    "recording": {
+        "style": "gaze",
+        "seed": "plaud-gaze-recording",
+        "params": {"shapeVariant": "circle", "eyesVariant": "wide", "bodyColor": "fbabaf"},
+    },
+    "saving": {
+        "style": "gaze",
+        "seed": "plaud-gaze-saving",
+        "params": {"shapeVariant": "circle", "eyesVariant": "squint", "bodyColor": "d8b1fb"},
+    },
+    "error": {
+        "style": "gaze",
+        "seed": "plaud-gaze-error",
+        "params": {"shapeVariant": "circle", "eyesVariant": "bars", "bodyColor": "fbb271"},
+    },
 }
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -32,14 +53,12 @@ OUT_C = ROOT / "firmware" / "main" / "avatars.c"
 OUT_H = ROOT / "firmware" / "main" / "avatars.h"
 
 
-def fetch(style: str, seed: str) -> Image.Image:
+def fetch(style: str, seed: str, params: dict[str, str]) -> Image.Image:
     ASSETS.mkdir(parents=True, exist_ok=True)
     path = ASSETS / f"{style}_{seed}.png"
     if not path.exists():
-        url = (
-            f"https://api.dicebear.com/10.x/{style}/png"
-            f"?seed={seed}&size={SIZE}&backgroundColor=00000000"
-        )
+        query = {"seed": seed, "size": str(SIZE), "backgroundColor": "00000000", **params}
+        url = f"https://api.dicebear.com/10.x/{style}/png?" + urlencode(query)
         print("fetch", url)
         with urllib.request.urlopen(url, timeout=30) as response:
             path.write_bytes(response.read())
@@ -59,8 +78,9 @@ def to_rgb565(image: Image.Image) -> bytes:
 def main() -> None:
     declarations = []
     definitions = []
-    for name, (style, seed) in STATES.items():
-        image = fetch(style, seed).resize((SIZE, SIZE), Image.LANCZOS)
+    for name, spec in STATES.items():
+        style, seed, params = spec["style"], spec["seed"], spec["params"]
+        image = fetch(style, seed, params).resize((SIZE, SIZE), Image.LANCZOS)
         data = to_rgb565(image)
         assert len(data) == SIZE * SIZE * 2, len(data)
         rows = []
