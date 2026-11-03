@@ -47,7 +47,6 @@ static FILE *s_file;
 static char s_path[64];
 static uint32_t s_frames;
 static uint32_t s_data_bytes;
-static uint32_t s_dropped;
 
 /* ---------------------------------------------------------------- WebSocket */
 
@@ -341,7 +340,6 @@ static void begin_recording(void)
         return;
     }
     s_frames = 0;
-    s_dropped = 0;
     ui_set_timer(0);
     ui_set_state(UI_RECORDING);
     if (!ws_connected()) {

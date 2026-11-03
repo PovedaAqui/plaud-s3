@@ -115,7 +115,7 @@ server/
   app/pipeline.py    ASR, optional diarization, LLM notes, vault export
   app/wavio.py       streaming WAV writer
   tools/send_wav.py  replay a WAV through the real protocol
-  tests/             15 tests (protocol, concurrency, failure paths)
+  tests/             53 tests, ~90% coverage
 scripts/
   configure_wifi.sh  credentials → sdkconfig.local → BSP patch → build
   gen_avatars.py     fetch DiceBear variants and write the .bin blobs
@@ -261,13 +261,17 @@ channels, and `PLAUD_AUTOTEST_SECONDS` (0 = off).
 ## Testing
 
 ```bash
-cd server && PYTHONPATH=. ../.venv/bin/python -m pytest -q   # 15 tests
+make test        # pytest: 53 tests
+make lint        # ruff
+cd server && PYTHONPATH=. ../.venv/bin/python -m pytest -q --cov=app --cov-report=term-missing
 ```
+
+Current suite: **53 tests, 90% coverage** (config 100%, wavio 97%, pipeline 91%, ingest 85%).
 
 Covered: WAV header integrity, ingest, pause/resume (frames dropped while paused),
 stop-while-paused, abrupt disconnect finalisation, malformed JSON, unsupported sample rate,
-two concurrent sessions, pipeline crash isolation, honest no-LLM notes, vault publishing and
-the HTTP surface.
+concurrent sessions and unique ids, pipeline crash isolation, diarization fallback, LLM JSON and
+failure paths, vault publishing failures, honest no-LLM notes and the HTTP surface.
 
 On device, `CONFIG_PLAUD_AUTOTEST_SECONDS=N` runs record → pause → resume → stop after boot, so
 the whole radio/audio path can be exercised from serial without touching the panel. An 11 s
