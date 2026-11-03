@@ -268,11 +268,11 @@ static bool upload_file(const char *path)
     return true;
 }
 
-static void upload_pending_once(void)
+static bool upload_pending_once(void)
 {
     char path[64];
     if (!storage_first_pending(path, sizeof(path))) {
-        return;
+        return false;
     }
     ui_set_state(UI_SAVING);
     ui_set_status("uploading");
@@ -282,6 +282,7 @@ static void upload_pending_once(void)
         ESP_LOGW(TAG, "upload of %s postponed", path);
     }
     ui_set_pending(storage_pending());
+    return ok;
 }
 
 /* ---------------------------------------------------------------- audio I/O */
@@ -388,8 +389,14 @@ static void recorder_task(void *arg)
                 /* nothing to stop */
             } else if (xTaskGetTickCount() >= next_retry) {
                 next_retry = xTaskGetTickCount() + pdMS_TO_TICKS(UPLOAD_RETRY_MS);
+                /* Drain the queue back-to-back; the retry timer only gates
+                   attempts, not individual files. */
                 if (storage_pending() > 0 && ws_connected()) {
-                    upload_pending_once();
+                    for (int i = 0; i < 16; i++) {
+                        if (storage_pending() == 0 || !upload_pending_once()) {
+                            break;
+                        }
+                    }
                 }
             }
             vTaskDelay(pdMS_TO_TICKS(50));

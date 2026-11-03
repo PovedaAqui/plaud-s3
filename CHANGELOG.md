@@ -2,6 +2,12 @@
 
 All notable changes to this project. Dates are ISO-8601.
 
+## [0.2.1] — 2026-11-04
+
+### Fixed
+- The upload queue drains back-to-back instead of one file per retry interval, so a backlog
+  after a long offline period clears in seconds.
+
 ## [0.2.0] — 2026-11-04
 
 ### Added

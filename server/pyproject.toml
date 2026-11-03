@@ -1,6 +1,6 @@
 [project]
 name = "plaud-s3-server"
-version = "0.2.0"
+version = "0.2.1"
 description = "Local ingest, transcription and note pipeline for the ESP32-S3 recorder"
 requires-python = ">=3.11"
 dependencies = [
