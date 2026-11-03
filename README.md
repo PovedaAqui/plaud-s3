@@ -91,16 +91,20 @@ with `storage full`.
 | Storage | 16 MB FAT partition (`/storage`, wear-levelled), ~8 min at 16 kHz mono; optional microSD |
 | USB | native USB-Serial/JTAG (`303a:1001`) |
 
-A 16 MB flash backup covering the bootloader, partition table, `nvs` and factory app was taken before the first flash.
+A 16 MB flash backup covering the bootloader, partition table, `nvs` and factory app was taken
+before the first flash.
+
+![Battery and board](docs/images/device-battery.jpg)
 
 ## Repository layout
 
 ```
 firmware/
   main/main.c        boot: display, UI, Wi-Fi, recorder, buttons
-  main/recorder.c    codec → downmix → WebSocket state machine (idle/record/pause/stop)
+  main/recorder.c    codec → downmix → local WAV; pause/toggle state machine; uploader
   main/ui.c          LVGL screen: DiceBear avatar, timer, hint, long-press stop
   main/buttons.c     GPIO0 polling + AXP2101 PWRON interrupt-status polling
+  main/storage.c     FAT mount (internal + optional SD), pending queue, next path
   main/avatars.c     baked 180×180 RGB565 avatars (generated)
   assets/avatars/    source PNGs from DiceBear
 server/
