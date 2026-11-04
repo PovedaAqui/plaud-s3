@@ -2,6 +2,12 @@
 
 All notable changes to this project. Dates are ISO-8601.
 
+## [0.3.1] — 2026-11-04
+
+### Changed
+- The pocket watch defaults to central European time (`CET-1CEST,...`) instead of UTC, so the
+  face shows local time out of the box; `CONFIG_PLAUD_TZ` still overrides it.
+
 ## [0.3.0] — 2026-11-04
 
 ### Added

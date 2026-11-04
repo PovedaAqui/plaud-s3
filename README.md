@@ -220,6 +220,11 @@ After `CONFIG_PLAUD_SCREENSAVER_S` seconds idle the screen shows an always-on an
 pocket-watch face at `CONFIG_PLAUD_DIM_BRIGHTNESS` (default 30 s / 25 %). The first tap or
 button press only wakes it, so a stray touch cannot start a recording; the next tap records.
 
+![Pocket-watch screensaver](docs/images/device-watch.jpg)
+
+*The always-on face: 60 ticks, no seconds hand, time from NTP. Default timezone is CET
+(`CONFIG_PLAUD_TZ`); hands sit at twelve with a `SYNC` label until the first NTP reply.*
+
 Key1 is a plain GPIO0 button (10K pull-up, 100 nF debounce) polled every 20 ms with a
 3-sample debounce. Key2 pulls the AXP2101 `PWRON` pin: presses are only visible in `INTSTS2`
 (`PKEY_SHORT` / `PKEY_LONG`), which the firmware polls over I2C and clears with
@@ -376,7 +381,7 @@ Deliberate for v0:
 - **One pipeline at a time.** `faster-whisper` is not parallelised across recordings.
 - **No OTA, no wake word, no VAD gating** on the device.
 - **The watch face is always on.** There is no RTC; without Wi-Fi/NTP it shows `SYNC` and
-  hands at twelve.
+  hands at twelve. The timezone is a build option (`CONFIG_PLAUD_TZ`, default CET).
 
 Next: resumable/deduplicated uploads, a shared token between device and server, OTA, and locally
 animated avatars (two baked frames) instead of a static PNG.
