@@ -2,6 +2,12 @@
 
 All notable changes to this project. Dates are ISO-8601.
 
+## [0.3.3] — 2026-11-04
+
+### Changed
+- Timezone comes only from the server's `{epoch, offset}` message. The USB `TIME` command and
+  `scripts/sync_usb_time.py` are removed; the watch shows `SYNC` when no server is reachable.
+
 ## [0.3.2] — 2026-11-04
 
 ### Changed

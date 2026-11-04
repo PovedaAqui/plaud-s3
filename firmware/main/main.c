@@ -4,7 +4,6 @@
 
 #include "bsp/esp-bsp.h"
 #include "buttons.h"
-#include "usbcmd.h"
 #include "esp_log.h"
 #include "esp_sntp.h"
 #include "freertos/FreeRTOS.h"
@@ -81,7 +80,6 @@ void app_main(void)
     recorder_init();
     recorder_start();
     buttons_start(on_button);
-    usbcmd_start();
 
 #if CONFIG_PLAUD_AUTOTEST_SECONDS > 0
     vTaskDelay(pdMS_TO_TICKS(1500));

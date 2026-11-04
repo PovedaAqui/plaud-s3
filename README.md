@@ -119,7 +119,6 @@ server/
 scripts/
   configure_wifi.sh  credentials → sdkconfig.local → BSP patch → build
   gen_avatars.py     fetch DiceBear variants and write the .bin blobs
-  sync_usb_time.py   set the clock over USB when there is no network
   patch_bsp_display.sh  display-driver fixes after the component manager refetches
 docs/images/         README assets
 examples/meeting/    one complete run: audio, transcript, note
@@ -271,8 +270,7 @@ Server (environment):
 
 Firmware (`menuconfig → Plaud-S3 recorder`): Wi-Fi SSID/password, server and NTP URLs, device
 name, channels, brightness, screensaver timeout and dim level, and `PLAUD_AUTOTEST_SECONDS`
-(0 = off). The watch timezone follows the server's offset; use
-`python3 scripts/sync_usb_time.py` when there is no network.
+(0 = off). The watch timezone follows the server's UTC offset; there is no on-device setting.
 
 ## Example output
 
@@ -383,8 +381,8 @@ Deliberate for v0:
 - **No authentication.** The WebSocket is open on the LAN — do not expose it to the internet.
 - **One pipeline at a time.** `faster-whisper` is not parallelised across recordings.
 - **No OTA, no wake word, no VAD gating** on the device.
-- **The watch face is always on.** There is no RTC; without Wi-Fi/NTP it shows `SYNC` and
-  hands at twelve. With no network, `scripts/sync_usb_time.py` sets the clock over USB.
+- **The watch face is always on.** There is no RTC and timezone comes only from the server:
+  without Wi-Fi it shows `SYNC` and hands at twelve.
 
 Next: resumable/deduplicated uploads, a shared token between device and server, OTA, and locally
 animated avatars (two baked frames) instead of a static PNG.
