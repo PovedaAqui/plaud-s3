@@ -1,0 +1,9 @@
+{
+  "id": "20260101-121500-demo",
+  "device": "wav-client (synthetic TTS)",
+  "duration": 25.7,
+  "language": "en",
+  "segments": 6,
+  "title": "Review launch readiness and finalize firmware",
+  "sample": "Synthetic meeting (Windows SAPI, 16 kHz mono); faster-whisper tiny + MiniCPM5-1B"
+}

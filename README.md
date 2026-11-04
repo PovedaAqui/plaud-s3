@@ -121,6 +121,7 @@ scripts/
   gen_avatars.py     fetch DiceBear variants and write the .bin blobs
   patch_bsp_display.sh  display-driver fixes after the component manager refetches
 docs/images/         README assets
+examples/meeting/    one complete run: audio, transcript, note
 .github/workflows/   server tests + ESP-IDF build
 CONTRIBUTING.md      dev setup, tests, PR rules
 SECURITY.md          private reporting, trust model
@@ -198,6 +199,10 @@ DiceBear exposes variants as `<component>Variant` query parameters (`shapeVarian
 `eyesVariant`, …) and colours as `bodyColor` / `inkColor` / `glintColor`. The generator pins
 them, so a style refresh cannot silently change the look.
 
+![Ready on the device](docs/images/device-ready.jpg)
+
+*Ready: green avatar, timer at zero.*
+
 ![Paused on the device](docs/images/device-paused.jpg)
 
 *Paused: amber avatar, `tall` eyes, timer frozen at the recorded length.*
@@ -257,6 +262,24 @@ Server (environment):
 
 Firmware (`menuconfig → Plaud-S3 recorder`): Wi-Fi SSID/password, server URL, device name,
 channels, and `PLAUD_AUTOTEST_SECONDS` (0 = off).
+
+## Example output
+
+[`examples/meeting/`](examples/meeting/) holds a complete run: a 25.7 s synthetic meeting, its
+transcript and the note MiniCPM5-1B produced.
+
+> [00:00] Alice: Let's review the launch readiness.
+> [00:03] Bob: Firmware is done except the battery drain test.
+> …
+>
+> **Summary** — Bob confirms firmware is ready but needs battery drain testing. Alice asks for a
+> deadline of Friday. Carol will prepare release notes by tomorrow.
+>
+> **Action items** — run the drain test tomorrow morning · prepare the release notes · ship on the
+> 14th if the test passes.
+
+The audio is Windows SAPI speech so it can be committed; the note is raw model output, not edited.
+[`examples/README.md`](examples/README.md) explains how to regenerate it.
 
 ## Testing
 

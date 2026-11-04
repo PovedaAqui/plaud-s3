@@ -1,0 +1,6 @@
+[00:00] Speaker 1: Alice, let's review the launch readiness.
+[00:03] Speaker 1: Bob, firmware is done except the battery drain test.
+[00:08] Speaker 1: Alice, can you finish it by Friday?
+[00:11] Speaker 1: Bob, yes, I'll run the drain test tomorrow morning.
+[00:16] Speaker 1: Carol, I'll prepare the release notes and send them to marketing.
+[00:21] Speaker 1: Alice, we ship on the 14th if the test passes.
