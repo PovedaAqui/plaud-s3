@@ -2,6 +2,17 @@
 
 All notable changes to this project. Dates are ISO-8601.
 
+## [0.3.0] — 2026-11-04
+
+### Added
+- Pocket-watch screensaver: an always-on analog face (no seconds hand) after
+  `CONFIG_PLAUD_SCREENSAVER_S` idle seconds, dimmed to `CONFIG_PLAUD_DIM_BRIGHTNESS`.
+  The first tap or button press only wakes the device, so a brush against the glass cannot
+  start a recording.
+- NTP time sync (`CONFIG_PLAUD_NTP_SERVER`) plus a POSIX `CONFIG_PLAUD_TZ`; the face shows
+  `SYNC` until time is known.
+- Screen brightness is configurable (`CONFIG_PLAUD_BRIGHTNESS`).
+
 ## [0.2.3] — 2026-11-04
 
 ### Fixed

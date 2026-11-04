@@ -209,14 +209,16 @@ them, so a style refresh cannot silently change the look.
 
 ## Controls
 
-| Input | Idle | Recording | Paused |
-|---|---|---|---|
-| Tap avatar | start | pause | resume |
-| Hold avatar | — | stop & save | stop & save |
-| Key1 tap | start | pause | resume |
-| Key1 hold | — | stop & save | stop & save |
-| Key2 tap | start | stop & save | stop & save |
-| Key2 hold | handled by the PMIC | handled by the PMIC | handled by the PMIC |
+| Input | Idle | Recording | Paused | Screensaver |
+|---|---|---|---|---|
+| Tap avatar / screen | start | pause | resume | wake only |
+| Hold avatar | — | stop & save | stop & save | wake only |
+| Key1 | start / long: stop | pause | resume | wake only |
+| Key2 | start / stop | stop & save | stop & save | wake only |
+
+After `CONFIG_PLAUD_SCREENSAVER_S` seconds idle the screen shows an always-on analog
+pocket-watch face at `CONFIG_PLAUD_DIM_BRIGHTNESS` (default 30 s / 25 %). The first tap or
+button press only wakes it, so a stray touch cannot start a recording; the next tap records.
 
 Key1 is a plain GPIO0 button (10K pull-up, 100 nF debounce) polled every 20 ms with a
 3-sample debounce. Key2 pulls the AXP2101 `PWRON` pin: presses are only visible in `INTSTS2`
@@ -260,8 +262,9 @@ Server (environment):
 | `PLAUD_LLM_TEMPERATURE` | 0.2 | generation temperature |
 | `PLAUD_LLM_MAX_TOKENS` | 0 | 0 lets the endpoint decide |
 
-Firmware (`menuconfig → Plaud-S3 recorder`): Wi-Fi SSID/password, server URL, device name,
-channels, and `PLAUD_AUTOTEST_SECONDS` (0 = off).
+Firmware (`menuconfig → Plaud-S3 recorder`): Wi-Fi SSID/password, server URL and NTP server,
+timezone, device name, channels, brightness, screensaver timeout and dim level, and
+`PLAUD_AUTOTEST_SECONDS` (0 = off).
 
 ## Example output
 
@@ -372,6 +375,8 @@ Deliberate for v0:
 - **No authentication.** The WebSocket is open on the LAN — do not expose it to the internet.
 - **One pipeline at a time.** `faster-whisper` is not parallelised across recordings.
 - **No OTA, no wake word, no VAD gating** on the device.
+- **The watch face is always on.** There is no RTC; without Wi-Fi/NTP it shows `SYNC` and
+  hands at twelve.
 
 Next: resumable/deduplicated uploads, a shared token between device and server, OTA, and locally
 animated avatars (two baked frames) instead of a static PNG.

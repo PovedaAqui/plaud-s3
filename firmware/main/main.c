@@ -1,8 +1,11 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 
 #include "bsp/esp-bsp.h"
 #include "buttons.h"
 #include "esp_log.h"
+#include "esp_sntp.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
@@ -18,6 +21,12 @@ static void on_button(button_id_t id, bool long_press)
         return; /* the PMIC owns long-press power-off */
     }
     ESP_LOGI(TAG, "button %s", long_press ? "long" : "short");
+
+    /* A press while the watch is showing only wakes the device. */
+    if (ui_screensaver_active()) {
+        ui_wake();
+        return;
+    }
 
     if (id == BUTTON_KEY1) {
         /* Tap cycles record -> pause -> resume; hold stops and saves. */
@@ -46,8 +55,11 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
+    setenv("TZ", CONFIG_PLAUD_TZ, 1);
+    tzset();
+
     bsp_display_start();
-    bsp_display_brightness_set(80);
+    bsp_display_brightness_set(CONFIG_PLAUD_BRIGHTNESS);
     ui_init();
     ui_set_state(UI_CONNECTING);
     ui_set_status("joining wi-fi");
@@ -56,7 +68,13 @@ void app_main(void)
 
     recorder_selftest();
     wifi_start();
-    if (!wifi_wait_connected(30000)) {
+    bool online = wifi_wait_connected(30000);
+    if (online) {
+        esp_sntp_setoperatingmode(ESP_SNTP_OPMODE_POLL);
+        esp_sntp_setservername(0, CONFIG_PLAUD_NTP_SERVER);
+        esp_sntp_init();
+    }
+    if (!online) {
         ESP_LOGE(TAG, "no Wi-Fi; check menuconfig credentials");
         ui_set_state(UI_ERROR);
         ui_set_status("no wi-fi - check config");

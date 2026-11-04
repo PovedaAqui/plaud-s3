@@ -27,6 +27,34 @@ menu "Plaud-S3 recorder"
         range 400 5000
         default 1500
 
+    config PLAUD_BRIGHTNESS
+        int "Normal screen brightness (%)"
+        range 10 100
+        default 80
+
+    config PLAUD_SCREENSAVER_S
+        int "Idle seconds before the pocket-watch screensaver"
+        range 0 3600
+        default 30
+        help
+            0 disables the screensaver. While it is shown the first tap only wakes
+            the device, so a brush against the screen cannot start a recording.
+
+    config PLAUD_DIM_BRIGHTNESS
+        int "Screensaver brightness (%)"
+        range 1 100
+        default 25
+
+    config PLAUD_TZ
+        string "POSIX timezone for the watch"
+        default "UTC0"
+        help
+            For example CET-1CEST,M3.5.0,M10.5.0/3 for central Europe.
+
+    config PLAUD_NTP_SERVER
+        string "NTP server"
+        default "pool.ntp.org"
+
     config PLAUD_DEVICE_NAME
         string "Device name reported to the server"
         default "plaud-s3"

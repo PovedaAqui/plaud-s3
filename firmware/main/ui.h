@@ -24,6 +24,11 @@ void ui_set_pending(int count);
 void ui_on_toggle(void (*callback)(void));
 void ui_on_stop(void (*callback)(void));
 
+/* Pocket-watch screensaver: first tap only wakes the device. */
+bool ui_screensaver_active(void);
+void ui_wake(void);
+void ui_notify_activity(void);
+
 #ifdef __cplusplus
 }
 #endif
