@@ -20,3 +20,4 @@ scripts/wifi.env
 .coverage
 coverage.xml
 htmlcov/
+examples/run/

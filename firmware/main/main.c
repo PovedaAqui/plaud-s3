@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-
 #include "bsp/esp-bsp.h"
 #include "buttons.h"
 #include "esp_log.h"

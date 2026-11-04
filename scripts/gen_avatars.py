@@ -11,6 +11,7 @@ ESP32.
 
 from __future__ import annotations
 
+import io
 import pathlib
 import urllib.request
 from urllib.parse import urlencode
@@ -66,7 +67,9 @@ def fetch(style: str, seed: str, params: dict[str, str]) -> Image.Image:
         url = f"https://api.dicebear.com/10.x/{style}/png?" + urlencode(query)
         print("fetch", url)
         with urllib.request.urlopen(url, timeout=30) as response:
-            path.write_bytes(response.read())
+            raw = response.read()
+        # Re-encode without the IPTC/XMP chunks DiceBear embeds.
+        Image.open(io.BytesIO(raw)).convert("RGBA").save(path)
     return Image.open(path).convert("RGBA")
 
 
@@ -75,9 +78,10 @@ def to_rgb565(image: Image.Image) -> bytes:
     # only the coloured body of the mascot is visible.
     canvas = Image.new("RGBA", image.size, (0, 0, 0, 255))
     flat = Image.alpha_composite(canvas, image).convert("RGB")
+    raw = flat.tobytes()
     out = bytearray()
-    for r, g, b in flat.getdata():
-        value = ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
+    for i in range(0, len(raw), 3):
+        value = ((raw[i] >> 3) << 11) | ((raw[i + 1] >> 2) << 5) | (raw[i + 2] >> 3)
         out += value.to_bytes(2, "little")
     return bytes(out)
 
