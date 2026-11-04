@@ -29,6 +29,9 @@ bool ui_screensaver_active(void);
 void ui_wake(void);
 void ui_notify_activity(void);
 
+/* Apply wall-clock time and UTC offset (seconds) from the server or USB host. */
+void ui_set_clock(long long epoch, int utc_offset_sec);
+
 #ifdef __cplusplus
 }
 #endif

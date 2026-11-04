@@ -57,6 +57,8 @@ async def stream(wav: pathlib.Path) -> str:
     async with websockets.connect(f"ws://127.0.0.1:{PORT}/ws/audio", max_size=None) as ws:
         await ws.send(json.dumps({"type": "start", "device": "e2e", "rate": rate}))
         started = json.loads(await ws.recv())
+        while started.get("type") == "time":
+            started = json.loads(await ws.recv())
         assert started["type"] == "started", started
         chunk = rate * 2 // 10
         for offset in range(0, len(pcm), chunk):

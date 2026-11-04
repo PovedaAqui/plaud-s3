@@ -45,11 +45,6 @@ menu "Plaud-S3 recorder"
         range 1 100
         default 25
 
-    config PLAUD_TZ
-        string "POSIX timezone for the watch"
-        default "CET-1CEST,M3.5.0,M10.5.0/3"
-        help
-            For example CET-1CEST,M3.5.0,M10.5.0/3 for central Europe.
 
     config PLAUD_NTP_SERVER
         string "NTP server"

@@ -18,6 +18,7 @@
 #include "sdkconfig.h"
 #include "storage.h"
 #include "ui.h"
+#include "ui.h"
 
 static const char *TAG = "recorder";
 
@@ -69,6 +70,17 @@ static void ws_event(void *arg, esp_event_base_t base, int32_t id, void *data)
         if (event->op_code == 0x01 && event->data_ptr && event->data_len > 0) {
             if (strstr(event->data_ptr, "\"started\"")) {
                 xEventGroupSetBits(s_ws_bits, WS_STARTED);
+            } else if (strstr(event->data_ptr, "\"type\":\"time\"")) {
+                char buffer[192];
+                int n = event->data_len < (int)sizeof(buffer) - 1 ? event->data_len : (int)sizeof(buffer) - 1;
+                memcpy(buffer, event->data_ptr, n);
+                buffer[n] = 0;
+                long long epoch = 0;
+                int offset = 0;
+                if (sscanf(buffer, "{\"type\":\"time\",\"epoch\":%lld,\"offset\":%d",
+                           &epoch, &offset) == 2) {
+                    ui_set_clock(epoch, offset);
+                }
             } else if (strstr(event->data_ptr, "\"done\"")) {
                 xEventGroupSetBits(s_ws_bits, WS_DONE);
             } else if (strstr(event->data_ptr, "\"error\"")) {

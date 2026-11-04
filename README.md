@@ -115,10 +115,11 @@ server/
   app/pipeline.py    ASR, optional diarization, LLM notes, vault export
   app/wavio.py       streaming WAV writer
   tools/send_wav.py  replay a WAV through the real protocol
-  tests/             55 tests, ~90% coverage
+  tests/             56 tests, ~90% coverage
 scripts/
   configure_wifi.sh  credentials → sdkconfig.local → BSP patch → build
   gen_avatars.py     fetch DiceBear variants and write the .bin blobs
+  sync_usb_time.py   set the clock over USB when there is no network
   patch_bsp_display.sh  display-driver fixes after the component manager refetches
 docs/images/         README assets
 examples/meeting/    one complete run: audio, transcript, note
@@ -222,8 +223,9 @@ button press only wakes it, so a stray touch cannot start a recording; the next 
 
 ![Pocket-watch screensaver](docs/images/device-watch.jpg)
 
-*The always-on face: 60 ticks, no seconds hand, time from NTP. Default timezone is CET
-(`CONFIG_PLAUD_TZ`); hands sit at twelve with a `SYNC` label until the first NTP reply.*
+*The always-on face: 60 ticks, no seconds hand. Time comes from NTP, and the server sends its
+current UTC offset on connect (refreshed twice an hour), so the face follows the server's
+timezone. Hands sit at twelve with a `SYNC` label until the first reply.*
 
 Key1 is a plain GPIO0 button (10K pull-up, 100 nF debounce) polled every 20 ms with a
 3-sample debounce. Key2 pulls the AXP2101 `PWRON` pin: presses are only visible in `INTSTS2`
@@ -267,9 +269,10 @@ Server (environment):
 | `PLAUD_LLM_TEMPERATURE` | 0.2 | generation temperature |
 | `PLAUD_LLM_MAX_TOKENS` | 0 | 0 lets the endpoint decide |
 
-Firmware (`menuconfig → Plaud-S3 recorder`): Wi-Fi SSID/password, server URL and NTP server,
-timezone, device name, channels, brightness, screensaver timeout and dim level, and
-`PLAUD_AUTOTEST_SECONDS` (0 = off).
+Firmware (`menuconfig → Plaud-S3 recorder`): Wi-Fi SSID/password, server and NTP URLs, device
+name, channels, brightness, screensaver timeout and dim level, and `PLAUD_AUTOTEST_SECONDS`
+(0 = off). The watch timezone follows the server's offset; use
+`python3 scripts/sync_usb_time.py` when there is no network.
 
 ## Example output
 
@@ -292,12 +295,12 @@ The audio is Windows SAPI speech so it can be committed; the note is raw model o
 ## Testing
 
 ```bash
-make test        # pytest: 55 tests
+make test        # pytest: 56 tests
 make lint        # ruff
 cd server && PYTHONPATH=. ../.venv/bin/python -m pytest -q --cov=app --cov-report=term-missing
 ```
 
-Current suite: **55 tests, 90% coverage** (config 100%, wavio 97%, pipeline 91%, ingest 85%).
+Current suite: **56 tests, 90% coverage** (config 100%, wavio 97%, pipeline 91%, ingest 85%).
 
 A black-box end-to-end check starts its own server, downloads an 11 s speech clip, streams it
 through the WebSocket protocol and asserts the transcript, WAV and fallback note:
@@ -381,7 +384,7 @@ Deliberate for v0:
 - **One pipeline at a time.** `faster-whisper` is not parallelised across recordings.
 - **No OTA, no wake word, no VAD gating** on the device.
 - **The watch face is always on.** There is no RTC; without Wi-Fi/NTP it shows `SYNC` and
-  hands at twelve. The timezone is a build option (`CONFIG_PLAUD_TZ`, default CET).
+  hands at twelve. With no network, `scripts/sync_usb_time.py` sets the clock over USB.
 
 Next: resumable/deduplicated uploads, a shared token between device and server, OTA, and locally
 animated avatars (two baked frames) instead of a static PNG.

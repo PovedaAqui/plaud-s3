@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -22,6 +23,22 @@ app = FastAPI(title="plaud-s3", version="0.1.0")
 
 # Active writers keyed by websocket so two devices can record at once.
 _active: dict[WebSocket, dict] = {}
+
+
+def _time_payload() -> dict:
+    """Wall clock plus this machine's current UTC offset, so the device can show local time."""
+    offset = int(datetime.now().astimezone().utcoffset().total_seconds())
+    return {"type": "time", "epoch": int(time.time()), "offset": offset}
+
+
+async def _time_loop(ws: WebSocket) -> None:
+    """Refresh the offset twice an hour so a DST change reaches the device."""
+    try:
+        while True:
+            await asyncio.sleep(1800)
+            await ws.send_json(_time_payload())
+    except Exception:
+        return
 
 
 def _recording_id() -> str:
@@ -103,6 +120,8 @@ async def _process_later(**kwargs) -> None:
 @app.websocket("/ws/audio")
 async def audio_ws(ws: WebSocket) -> None:
     await ws.accept()
+    await ws.send_json(_time_payload())
+    time_task = asyncio.create_task(_time_loop(ws))
     state: dict | None = None
     try:
         while True:
@@ -176,6 +195,7 @@ async def audio_ws(ws: WebSocket) -> None:
     except WebSocketDisconnect:
         pass
     finally:
+        time_task.cancel()
         if state:
             _active.pop(ws, None)
             try:

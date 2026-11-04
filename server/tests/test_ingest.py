@@ -17,6 +17,14 @@ def data_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
+def _recv(ws):
+    """Receive the next protocol message, skipping the clock greeting."""
+    message = ws.receive_json()
+    while message.get("type") == "time":
+        message = ws.receive_json()
+    return message
+
+
 def test_wav_writer_header_is_valid(tmp_path):
     path = tmp_path / "a.wav"
     with WavWriter(path, rate=16000) as w:
@@ -42,11 +50,11 @@ def test_ws_ingest_writes_audio_and_finalises(data_dir, monkeypatch):
     client = TestClient(server.app)
     with client.websocket_connect("/ws/audio") as ws:
         ws.send_json({"type": "start", "device": "test-device"})
-        started = ws.receive_json()
+        started = _recv(ws)
         assert started["type"] == "started"
         ws.send_bytes(b"\x00\x00" * 16000)  # one second of silence
         ws.send_json({"type": "stop"})
-        done = ws.receive_json()
+        done = _recv(ws)
         assert done["type"] == "done"
         assert done["duration"] == pytest.approx(1.0, abs=0.01)
 
@@ -71,16 +79,16 @@ def test_pause_drops_audio_between_resume(data_dir, monkeypatch):
     client = TestClient(server.app)
     with client.websocket_connect("/ws/audio") as ws:
         ws.send_json({"type": "start", "device": "test"})
-        assert ws.receive_json()["type"] == "started"
+        assert _recv(ws)["type"] == "started"
         ws.send_bytes(b"\x00\x00" * 16000)          # 1 s recorded
         ws.send_json({"type": "pause"})
-        assert ws.receive_json()["type"] == "paused"
+        assert _recv(ws)["type"] == "paused"
         ws.send_bytes(b"\x01\x01" * 16000)          # must be discarded
         ws.send_json({"type": "resume"})
-        assert ws.receive_json()["type"] == "resumed"
+        assert _recv(ws)["type"] == "resumed"
         ws.send_bytes(b"\x00\x00" * 16000)          # 1 s recorded
         ws.send_json({"type": "stop"})
-        assert ws.receive_json()["type"] == "done"
+        assert _recv(ws)["type"] == "done"
 
     with wave.open(str(calls["wav_path"])) as f:
         assert f.getnframes() == 32000  # 2 s, pause excluded

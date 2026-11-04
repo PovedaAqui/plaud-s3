@@ -2,6 +2,15 @@
 
 All notable changes to this project. Dates are ISO-8601.
 
+## [0.3.2] — 2026-11-04
+
+### Changed
+- Timezone is no longer a build option. The server sends its wall clock and current UTC offset
+  when the device connects (and twice an hour, so DST changes arrive), and the watch renders
+  local time from that offset.
+- With no Wi-Fi, `scripts/sync_usb_time.py` sets the clock and offset over USB Serial/JTAG
+  (`TIME <epoch> <offset>`), acknowledged with `TIME OK`.
+
 ## [0.3.1] — 2026-11-04
 
 ### Changed

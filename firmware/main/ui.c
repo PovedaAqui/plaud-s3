@@ -8,6 +8,8 @@
 #include "lvgl.h"
 #include "sdkconfig.h"
 
+#include <stdlib.h>
+#include <sys/time.h>
 #include <time.h>
 
 static const char *TAG = "ui";
@@ -32,6 +34,7 @@ static volatile bool s_watch_active;
 static uint32_t s_last_activity;
 static int s_last_hour = -1;
 static int s_last_min = -1;
+static int s_utc_offset;
 
 static void wake_locked(void);
 
@@ -61,7 +64,8 @@ static void update_watch_face(void)
         return;
     }
     struct tm tm;
-    localtime_r(&now, &tm);
+    time_t local = now + s_utc_offset;
+    gmtime_r(&local, &tm);
     if (!logged_sync) {
         logged_sync = true;
         ESP_LOGI(TAG, "clock synced %02d:%02d", tm.tm_hour, tm.tm_min);
@@ -119,6 +123,19 @@ void ui_wake(void)
 void ui_notify_activity(void)
 {
     ui_wake();
+}
+
+void ui_set_clock(long long epoch, int utc_offset_sec)
+{
+    time_t now = time(NULL);
+    if (llabs((long long)now - epoch) > 5) {
+        struct timeval tv = {.tv_sec = (time_t)epoch, .tv_usec = 0};
+        settimeofday(&tv, NULL);
+    }
+    s_utc_offset = utc_offset_sec;
+    s_last_min = -1;
+    s_last_hour = -1;
+    ESP_LOGI(TAG, "clock set (offset %d s)", utc_offset_sec);
 }
 
 bool ui_screensaver_active(void)

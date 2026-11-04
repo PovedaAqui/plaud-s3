@@ -28,9 +28,19 @@ def client(tmp_path, monkeypatch):
     return TestClient(server.app)
 
 
+def _recv(ws):
+    """Receive the next protocol message, skipping the clock greeting."""
+    message = ws.receive_json()
+    while message.get("type") == "time":
+        message = ws.receive_json()
+    return message
+
+
 def _start(ws, **extra):
     ws.send_json({"type": "start", "device": "test", **extra})
-    message = ws.receive_json()
+    message = _recv(ws)
+    while message["type"] == "time":
+        message = _recv(ws)
     assert message["type"] == "started"
     return message
 
@@ -38,13 +48,13 @@ def _start(ws, **extra):
 def test_pause_before_start_rejected(client):
     with client.websocket_connect("/ws/audio") as ws:
         ws.send_json({"type": "pause"})
-        assert ws.receive_json() == {"type": "error", "error": "not recording"}
+        assert _recv(ws) == {"type": "error", "error": "not recording"}
 
 
 def test_stop_before_start_rejected(client):
     with client.websocket_connect("/ws/audio") as ws:
         ws.send_json({"type": "stop"})
-        assert ws.receive_json()["type"] == "error"
+        assert _recv(ws)["type"] == "error"
 
 
 def test_bytes_before_start_are_ignored(client, tmp_path):
@@ -53,7 +63,7 @@ def test_bytes_before_start_are_ignored(client, tmp_path):
         _start(ws)
         ws.send_bytes(b"\x00\x00" * 16000)
         ws.send_json({"type": "stop"})
-        assert ws.receive_json()["type"] == "done"
+        assert _recv(ws)["type"] == "done"
     wavs = list(tmp_path.glob("*/audio.wav"))
     assert len(wavs) == 1
     with wave.open(str(wavs[0])) as f:
@@ -65,10 +75,10 @@ def test_stop_while_paused_keeps_earlier_audio(client, tmp_path):
         _start(ws)
         ws.send_bytes(b"\x00\x00" * 8000)
         ws.send_json({"type": "pause"})
-        assert ws.receive_json()["type"] == "paused"
+        assert _recv(ws)["type"] == "paused"
         ws.send_bytes(b"\x00\x00" * 8000)  # dropped
         ws.send_json({"type": "stop"})
-        assert ws.receive_json()["type"] == "done"
+        assert _recv(ws)["type"] == "done"
     wav = next(tmp_path.glob("*/audio.wav"))
     with wave.open(str(wav)) as f:
         assert f.getnframes() == 8000
@@ -88,13 +98,13 @@ def test_two_sessions_do_not_mix(client, tmp_path):
     with client.websocket_connect("/ws/audio") as one, client.websocket_connect("/ws/audio") as two:
         _start(one)
         two.send_json({"type": "start", "device": "second"})
-        assert two.receive_json()["type"] == "started"
+        assert _recv(two)["type"] == "started"
         one.send_bytes(b"\x00\x00" * 4000)
         two.send_bytes(b"\x00\x00" * 8000)
         one.send_json({"type": "stop"})
-        assert one.receive_json()["type"] == "done"
+        assert _recv(one)["type"] == "done"
         two.send_json({"type": "stop"})
-        assert two.receive_json()["type"] == "done"
+        assert _recv(two)["type"] == "done"
 
     frames = []
     for path in tmp_path.glob("*/audio.wav"):
@@ -107,16 +117,16 @@ def test_two_sessions_do_not_mix(client, tmp_path):
 def test_malformed_json_does_not_kill_session(client):
     with client.websocket_connect("/ws/audio") as ws:
         ws.send_text("not json")
-        assert ws.receive_json()["type"] == "error"
+        assert _recv(ws)["type"] == "error"
         _start(ws)
         ws.send_json({"type": "stop"})
-        assert ws.receive_json()["type"] == "done"
+        assert _recv(ws)["type"] == "done"
 
 
 def test_unsupported_sample_rate_rejected(client):
     with client.websocket_connect("/ws/audio") as ws:
         ws.send_json({"type": "start", "device": "test", "rate": 8000})
-        assert ws.receive_json() == {"type": "error", "error": "unsupported rate"}
+        assert _recv(ws) == {"type": "error", "error": "unsupported rate"}
 
 
 def test_pipeline_crash_still_acks_client(tmp_path, monkeypatch):
@@ -133,7 +143,7 @@ def test_pipeline_crash_still_acks_client(tmp_path, monkeypatch):
         _start(ws)
         ws.send_bytes(b"\x00\x00" * 1600)
         ws.send_json({"type": "stop"})
-        assert ws.receive_json()["type"] == "done"
+        assert _recv(ws)["type"] == "done"
     assert next(tmp_path.glob("*/audio.wav")).exists()
 
 
@@ -143,7 +153,7 @@ def test_health_and_listing(client, tmp_path):
         _start(ws)
         ws.send_bytes(b"\x00\x00" * 1600)
         ws.send_json({"type": "stop"})
-        ws.receive_json()
+        _recv(ws)
     listing = client.get("/recordings").json()
     assert len(listing) == 1
     assert listing[0]["device"] == "test"
@@ -155,37 +165,37 @@ def test_start_twice_rejected(client):
     with client.websocket_connect("/ws/audio") as ws:
         _start(ws)
         ws.send_json({"type": "start", "device": "again"})
-        assert ws.receive_json() == {"type": "error", "error": "already recording"}
+        assert _recv(ws) == {"type": "error", "error": "already recording"}
 
 
 def test_rate_as_string_is_accepted(client):
     with client.websocket_connect("/ws/audio") as ws:
         ws.send_json({"type": "start", "device": "test", "rate": "16000"})
-        assert ws.receive_json()["type"] == "started"
+        assert _recv(ws)["type"] == "started"
         ws.send_json({"type": "stop"})
-        assert ws.receive_json()["type"] == "done"
+        assert _recv(ws)["type"] == "done"
 
 
 def test_pause_is_idempotent_and_resume_without_pause_works(client):
     with client.websocket_connect("/ws/audio") as ws:
         _start(ws)
         ws.send_json({"type": "pause"})
-        assert ws.receive_json()["type"] == "paused"
+        assert _recv(ws)["type"] == "paused"
         ws.send_json({"type": "pause"})
-        assert ws.receive_json()["type"] == "paused"
+        assert _recv(ws)["type"] == "paused"
         ws.send_json({"type": "resume"})
-        assert ws.receive_json()["type"] == "resumed"
+        assert _recv(ws)["type"] == "resumed"
         ws.send_json({"type": "resume"})
-        assert ws.receive_json()["type"] == "resumed"
+        assert _recv(ws)["type"] == "resumed"
         ws.send_json({"type": "stop"})
-        assert ws.receive_json()["type"] == "done"
+        assert _recv(ws)["type"] == "done"
 
 
 def test_empty_recording_is_valid(client, tmp_path):
     with client.websocket_connect("/ws/audio") as ws:
         _start(ws)
         ws.send_json({"type": "stop"})
-        done = ws.receive_json()
+        done = _recv(ws)
         assert done["type"] == "done" and done["duration"] == 0.0
     wav = next(tmp_path.glob("*/audio.wav"))
     with wave.open(str(wav)) as f:
@@ -195,9 +205,9 @@ def test_empty_recording_is_valid(client, tmp_path):
 def test_device_name_is_truncated(client, tmp_path):
     with client.websocket_connect("/ws/audio") as ws:
         ws.send_json({"type": "start", "device": "x" * 100})
-        ws.receive_json()
+        _recv(ws)
         ws.send_json({"type": "stop"})
-        ws.receive_json()
+        _recv(ws)
     meta = json.loads(next(tmp_path.glob("*/meta.json")).read_text())
     assert len(meta["device"]) == 64
 
@@ -206,10 +216,10 @@ def test_garbage_text_mid_recording_keeps_session(client, tmp_path):
     with client.websocket_connect("/ws/audio") as ws:
         _start(ws)
         ws.send_text("this is not json")
-        assert ws.receive_json()["type"] == "error"
+        assert _recv(ws)["type"] == "error"
         ws.send_bytes(b"\x00\x00" * 1600)
         ws.send_json({"type": "stop"})
-        assert ws.receive_json()["type"] == "done"
+        assert _recv(ws)["type"] == "done"
     wav = next(tmp_path.glob("*/audio.wav"))
     with wave.open(str(wav)) as f:
         assert f.getnframes() == 1600
@@ -227,7 +237,7 @@ def test_disconnect_while_paused_finalises(client, tmp_path):
         _start(ws)
         ws.send_bytes(b"\x00\x00" * 8000)
         ws.send_json({"type": "pause"})
-        ws.receive_json()
+        _recv(ws)
     wav = next(tmp_path.glob("*/audio.wav"))
     with wave.open(str(wav)) as f:
         assert f.getnframes() == 8000
@@ -239,6 +249,14 @@ def test_session_ids_are_unique_within_one_second(client, tmp_path):
         with client.websocket_connect("/ws/audio") as ws:
             ids.add(_start(ws)["id"])
             ws.send_json({"type": "stop"})
-            ws.receive_json()
+            _recv(ws)
     assert len(ids) == 5
     assert len(list(tmp_path.glob("*/audio.wav"))) == 5
+
+
+def test_time_greeting_is_sent_on_connect(client):
+    with client.websocket_connect("/ws/audio") as ws:
+        message = ws.receive_json()
+        assert message["type"] == "time"
+        assert abs(message["epoch"] - int(__import__("time").time())) < 5
+        assert -7200 <= message["offset"] <= 14400

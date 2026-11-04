@@ -23,7 +23,10 @@ async def main(path: str, url: str) -> None:
 
     async with websockets.connect(url, max_size=None) as ws:
         await ws.send(json.dumps({"type": "start", "device": "wav-client", "rate": rate}))
-        print("server:", await ws.recv())
+        greeting = json.loads(await ws.recv())
+        while greeting.get("type") == "time":
+            greeting = json.loads(await ws.recv())
+        print("server:", greeting)
 
         chunk = rate * 2 // 10  # 100 ms
         for offset in range(0, len(pcm), chunk):

@@ -4,6 +4,7 @@
 
 #include "bsp/esp-bsp.h"
 #include "buttons.h"
+#include "usbcmd.h"
 #include "esp_log.h"
 #include "esp_sntp.h"
 #include "freertos/FreeRTOS.h"
@@ -55,9 +56,6 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(err);
 
-    setenv("TZ", CONFIG_PLAUD_TZ, 1);
-    tzset();
-
     bsp_display_start();
     bsp_display_brightness_set(CONFIG_PLAUD_BRIGHTNESS);
     ui_init();
@@ -83,6 +81,7 @@ void app_main(void)
     recorder_init();
     recorder_start();
     buttons_start(on_button);
+    usbcmd_start();
 
 #if CONFIG_PLAUD_AUTOTEST_SECONDS > 0
     vTaskDelay(pdMS_TO_TICKS(1500));
